@@ -663,8 +663,8 @@ function commitDrop(p) {
 }
 // 금빛 상자를 놓아 둘 자리(손가락 기기): 정답 자리에서 비스듬히 떨어진 땅 위(정답을 알려 주지 않는다)
 function restGhost() {
-  if (!isTouchUI() || fingerPiece || multi || !placing() || S.stage === 3) return;
-  const it = held(); if (!it) return;
+  if (!isTouchUI() || fingerPiece || multi || S.stage === 3) return;
+  const it = placing() && held(); if (!it) { ghost.visible = false; return; } // 다 놓았으면(자동 놓기 포함) 남은 상자를 치운다
   const x = it.pos[0] + 2.6, z = it.pos[2] + 2.6, { top } = surfaceTop(x, z, it.size[0], it.size[2]);
   setGhost(it.size, it); ghost.position.set(x + sim.gx, top + it.size[1] / 2 + 0.005, z + sim.gz); ghostMat.color.set(GHOST); ghostMat.opacity = 0.5; ghost.visible = true;
 }
