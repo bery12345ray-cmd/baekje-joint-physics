@@ -1,7 +1,7 @@
 // 첫 화면: 정림사지 안내 리플렛을 한 장씩 넘겨 보는 형식으로 보여 준다.
 // 내용은 정림사지박물관 안내 리플렛을 바탕으로 새로 쓴 글이며, 그림은 게임 톤(먹선·화강·금동)으로 새로 그렸다(리플렛 사진·로고는 쓰지 않음).
 const INK = '#1d1b18', STONE = '#cfc8b8', STONE2 = '#b9b1a0', GOLD = '#c8a054', JADE = '#4a7c74', PAPER = '#efe9dc', ROOF = '#5b554c';
-const svg = (body, vb = '0 0 320 260') => `<svg viewBox="${vb}" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" stroke="${INK}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">${body}</svg>`;
+const svg = (body, vb = '0 0 320 260') => `<svg viewBox="${vb}" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" stroke="${INK}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">${body}</svg>`;
 
 // 정림사지 오층석탑(실물 비례: 낮은 기단, 낮은 1층 몸돌, 빨리 좁아지는 몸돌, 얇고 넓은 지붕돌)
 function tower(cx, base, s = 1, label = false) {
