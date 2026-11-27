@@ -61,22 +61,30 @@ export function pagodaIcon(lv = ST.lv, px = 22) {
 }
 export const badgeText = (lv = ST.lv) => lv ? `LV.0${lv} ${LEVELS[lv - 1].name}` : '칭호 없음';
 
-// ---------- 레벨이 오를 때: 대목장이 새 칭호를 건넨다 ----------
-const coupon = L => `<div class="lv-coupon" aria-label="시연용 예시 혜택: 제휴처 ${L.off}% 할인권">
-  <span class="lv-demo">시연용 예시 혜택</span><b>${L.off}<small>%</small></b><span>제휴처 할인권</span><small class="lv-note">아직 제휴처가 없는 예시입니다 · 쓸 수 있는 쿠폰 번호는 없습니다</small></div>`;
+// ---------- 레벨이 오를 때(목업 05): 화면 가운데 칭호, 오른쪽에 망치를 들고 만세하는 꼬마 석공 ----------
+// 할인권은 제휴처가 없는 시연용 예시라 그렇게 밝히고 쿠폰 번호는 만들지 않는다.
+const coupon = L => `<div class="lv-coupon" aria-label="시연용 예시 혜택: 제휴처 ${L.off}% 할인권"><div><span class="lv-demo">시연용 예시 혜택</span><span class="lv-cname">제휴처 ${L.off}% 할인권</span><small class="lv-note">제휴처가 정해지면 쓸 수 있어요 · 지금은 쿠폰 번호가 없어요</small></div><b>${L.off}%</b></div>`;
+const DOTS = [[22, 25], [40, 12], [63, 18], [78, 30], [15, 62], [33, 83], [69, 75], [61, 90], [86, 58], [9, 40]];
 export function showLevelUp(L) {
   if (Array.isArray(L)) { const [first, ...rest] = L; if (!first) return; showLevelUp(first); if (rest.length) document.getElementById('lvup').__next = rest; return; }
   document.getElementById('lvup')?.remove();
   const el = document.createElement('div'); el.id = 'lvup'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'lvupTtl');
-  el.innerHTML = `<div class="lv-card"><div class="lv-who">${npcImg('celebrate', 'pop')}</div>
-    <div class="lv-body"><p class="lv-kicker">대목장이 새 칭호를 건넵니다</p>
-      <div class="lv-badge">${pagodaIcon(L.lv, 30)}<span>LV.0${L.lv}</span></div>
-      <h2 id="lvupTtl">${L.name}</h2><p class="lv-msg">“${L.msg}”</p>${coupon(L)}
-      <div class="lv-btns"><button class="btn line" data-lv="titles">내 칭호 보기</button><button class="btn pat" data-lv="ok">받기</button></div></div></div>`;
-  const close = () => { el.remove(); removeEventListener('keydown', onKey, true); if (el.__next) setTimeout(() => showLevelUp(el.__next), 250); };
+  const chips = DKEYS.map(k => { const y = ST.best[k] || 0; return `<span class="chip${y ? ' on' : ' dim'}">${DISASTERS[k].name} ${y ? y.toLocaleString('ko-KR') + '년' : '—'}</span>`; }).join('');
+  el.innerHTML = `<div class="lv-dots" aria-hidden="true">${DOTS.map(([x, y], i) => `<i style="left:${x}%;top:${y}%;animation-delay:${(i * 0.37).toFixed(2)}s"></i>`).join('')}</div>
+    <div class="lv-stage"><div class="lv-center">
+      <p class="lv-kicker">칭호가 올랐습니다</p>
+      <div class="lv-medal">${pagodaIcon(L.lv, 96)}</div>
+      <p class="lv-step">${L.lv > 1 ? `LV.0${L.lv - 1} → ` : ''}LV.0${L.lv}</p>
+      <h2 id="lvupTtl">${L.name}</h2><p class="lv-msg">“${L.msg}”</p>
+      <div class="lv-chips">${chips}</div><p class="lv-cond">${L.need}</p>
+      ${coupon(L)}
+      <div class="lv-btns"><button class="btn" data-lv="titles">내 칭호 보기</button><button class="btn white" data-lv="ok">계속 쌓기 →</button></div>
+    </div></div>
+    <div class="lv-npc">${npcImg('celebrate', 'pop')}</div>`;
+  const close = () => { el.remove(); document.body.classList.remove('modal'); removeEventListener('keydown', onKey, true); if (el.__next) setTimeout(() => showLevelUp(el.__next), 250); };
   const onKey = e => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); close(); } };
-  el.addEventListener('click', e => { const b = e.target.closest('[data-lv]'); if (e.target === el) return close(); if (!b) return; close(); if (b.dataset.lv === 'titles') el.dispatchEvent(new CustomEvent('lv-titles', { bubbles: true })); });
-  document.body.appendChild(el); addEventListener('keydown', onKey, true);
+  el.addEventListener('click', e => { const b = e.target.closest('[data-lv]'); if (e.target === el) return close(); if (!b) return; close(); if (b.dataset.lv === 'titles') document.dispatchEvent(new CustomEvent('lv-titles')); });
+  document.body.appendChild(el); document.body.classList.add('modal'); addEventListener('keydown', onKey, true);
   el.querySelector('[data-lv=ok]').focus();
 }
 // "내 칭호" 창 내용(game.js의 sheet에 넣는다). debug면 칭호 오름 창 미리보기 단추

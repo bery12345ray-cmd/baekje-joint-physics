@@ -95,6 +95,12 @@ export async function submitScore(stage, score, disaster = 'quake', lv = 1) {
   fetchTop(stage);
 }
 
+// 결과 창 순위 표시: 온라인이고 그 마당·재해 순위를 받아 왔을 때만(상위 10위 안에서 센다). 아니면 null
+export function rankOf(stage, dis, score) {
+  const rows = B.status === 'on' && B.rows[stage + '|' + dis]; if (!rows) return null;
+  const n = rows.filter(r => Number(r.score) > score).length + 1;
+  return n <= Math.max(10, rows.length) ? `순위 ${n}위` : null;
+}
 function draw() {
   const nick = getNick(), rows = B.rows[rk()] || [], on = B.status === 'on';
   const local = B.localBest(B.stage, B.dis);
