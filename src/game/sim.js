@@ -107,7 +107,7 @@ export class Sim {
       q.t += dt;
       if (q.mode === 'ramp') this.mag = Math.min(7, 1 + Math.floor(q.t / 2.5) * 0.5);
       const env = Math.min(1, q.t / 1.2);
-      const A = env * pga(this.mag) / Math.pow(2 * Math.PI * QUAKE.freq, 2);
+      const A = env * pga(this.mag) * (this.quakeGain || 1) / Math.pow(2 * Math.PI * QUAKE.freq, 2); // quakeGain: 예시 탑을 일부러 약하게 할 때
       const w = 2 * Math.PI * QUAKE.freq, t = q.t;
       this.gx = A * (0.8 * Math.sin(w * t) + 0.35 * Math.sin(1.73 * w * t + q.phase));
       this.gz = A * 0.45 * Math.sin(0.81 * w * t + q.phase * 0.5);

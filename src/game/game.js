@@ -72,10 +72,14 @@ function lessonHTML() {
 }
 // ---------- 국가유산 안내: 게임 속 유산의 실제 이야기 ----------
 const HERITAGE = [
-  { name: '부여 정림사지 오층석탑', tag: '국보 · 백제 사비기 · 화강암 · 높이 8.33m', img: 'pagoda-jeongnimsa.svg',
+  { name: '부여 정림사지 오층석탑', tag: '국보 · 백제 사비기 · 화강암 · 높이 8.33m · 오늘까지 남은 백제 석탑', img: 'pagoda-jeongnimsa.svg',
     where: '충남 부여군 부여읍 정림사지(사비 도성 한가운데 있던 절터)',
     body: ['익산 미륵사지 석탑과 함께 두 기만 남은 백제 석탑으로, 한국 석탑의 시조로 꼽힙니다.', '기둥돌을 끼운 낮은 기단, 배흘림 기둥 표현, 얇고 넓은 지붕돌로 목조 건물의 짜임새를 돌로 옮기면서도 장중하고 세련된 비례를 보여 줍니다.', '660년 백제가 멸망한 뒤 당나라 소정방이 1층 몸돌에 「대당평백제국비명」을 새겼습니다.', '2015년 「백제역사유적지구」의 하나로 유네스코 세계유산에 등재되었습니다.'],
     game: '둘째 마당에서 이 비례 그대로 쌓고, 비례를 바꿔 가며 지진에 견주어 봅니다.' },
+  { name: '익산 미륵사지 석탑', tag: '국보 · 백제 무왕 639년 · 오늘까지 남은 백제 석탑', img: 'pagoda-mireuksa.svg',
+    where: '전북특별자치도 익산시 금마면 미륵사지(서쪽 석탑)',
+    body: ['우리나라에 남은 가장 오래되고 가장 큰 석탑으로, 원래 9층으로 추정되며 6층까지 남았습니다.', '목조 건물을 돌로 옮겨, 1층 몸돌은 사방 3칸에 가운데 문을 내고 민흘림 기둥과 창방·평방을 돌로 본떴습니다. 백제 목탑의 모습을 잘 보여 줍니다.', '2009년 해체 수리 중 심주에서 금제 사리봉안기가 나와 639년(기해년)에 사리를 모셨음이 밝혀졌습니다.', '무너질 위험이 있어 2001년부터 해체·보수했고, 2019년에 정비를 마쳤습니다.'],
+    game: '셋째 마당 예시 탑으로 불러올 수 있습니다. 정림사지 석탑과 함께 지진을 버팁니다.' },
   { name: '부여 능산리 사지와 능사 목탑', tag: '사적 · 567년 무렵 창건 · 목탑은 터만 남음', img: 'pagoda-neungsa.svg',
     where: '충남 부여군 부여읍 능산리(능산리 고분군과 나성 사이)',
     body: ['1992년부터 발굴한 결과 중문·목탑·금당·강당이 한 줄로 놓인 전형적인 백제 가람(일탑일금당)으로 밝혀졌습니다.', '1993년 12월 공방터 수로에서 백제금동대향로(국보)가 나왔습니다.', '목탑 터에서 나온 석조사리감(국보)에는 창왕(위덕왕) 13년, 567년에 사리를 모셨다는 글이 새겨져 있습니다.', '목탑은 남아 있지 않아, 부여 백제문화단지(1993~2010년 조성)에 발굴된 터의 규모대로 능사와 오층목탑을 재현했습니다.'],
@@ -224,7 +228,7 @@ function hookSim() {
   };
 }
 function disposeTree(o) { o.traverse(c => c.geometry && c.geometry.dispose()); }
-function clearWorld() { for (const m of [...meshes]) { scene.remove(m); disposeTree(m); } meshes.length = 0; sim.reset(); S.ev = { breaks: 0, joints: 0 }; }
+function clearWorld() { if (sim) sim.quakeGain = 1; for (const m of [...meshes]) { scene.remove(m); disposeTree(m); } meshes.length = 0; sim.reset(); S.ev = { breaks: 0, joints: 0 }; }
 
 // ---------- 조립 설계도: the builders run against a recorder, then the player places every piece by hand ----------
 function pieceName({ mat, size: [w, h], tint, pos, part }) {
@@ -270,7 +274,7 @@ function autoPlace(untilStep) { // 정위치에 맞춰 놓기 (demo shortcut)
 }
 function buildAsm() { clearWorld(); const A = asm(); A.bodies = []; A.placed.forEach((_, i) => spawnPiece(i)); }
 function buildS3() {
-  clearWorld();
+  clearWorld(); sim.quakeGain = 1;
   const made = [];
   for (const it of S.design) {
     const b = sim.addBlock({ mat: it.mat, size: (it.size || SHAPES[it.shape].size).slice(), pos: it.pos, rotY: it.rot, tint: it.tint, part: it.part, po: it.po });
@@ -278,6 +282,8 @@ function buildS3() {
     if (it.links && it.links.length) { for (const l of it.links) if (made[l.to]) sim.addJoint(b, made[l.to], l.joint, l.anchor); }
     else if (it.parent != null && made[it.parent]) sim.addJoint(b, made[it.parent], it.joint, it.anchor);
   }
+  // 백제 시대 석탑으로 오늘까지 남은 것은 미륵사지·정림사지 둘뿐 → 게임에서는 다른 예시 탑을 일부러 약하게(이음 없이, 미끄럽게, 흔들림 1.6배)
+  if (S.example && EXAMPLES[S.example] && EXAMPLES[S.example].fragile) { for (const j of [...sim.joints]) sim.removeJoint(j); for (const b of sim.blocks) b.col.setFriction(0.3); const fr = EXAMPLES[S.example].fragile; sim.quakeGain = typeof fr === 'number' ? fr : 1.6; }
 }
 const rebuild = () => { resetDisaster(); S.dirty = false; S.crit = null; (S.stage === 3 ? buildS3 : buildAsm)(); syncVillage(); };
 // ---------- 탑 둘레: 백제 마을과 정림사 가람(둘째 마당은 "백제 때 / 오늘날" 전환) ----------
@@ -703,6 +709,7 @@ function panelHTML() {
     const s = S.s2, j = true; // 둘째 마당은 석탑만 다룬다(목탑은 첫째 마당)
     return head('둘째 마당 · 응용', '천년의 석탑') + photo('jeong')
       + spirit('검이불루 화이불치', '검소하되 누추하지 않고, 화려하되 사치스럽지 않다. 덜어낼수록 무게중심이 내려앉습니다.')
+      + spirit('나무의 집을 돌로 옮긴 탑', '정림사지 오층석탑은 목조건축 양식을 돌로 옮겨 지었습니다. 모서리 기둥(우주)은 배흘림 나무 기둥을, 옥개받침은 처마를 받치는 공포를, 얇고 넓으며 끝이 살짝 들린 옥개석은 기와지붕을 닮았습니다.')
       + asmBox(`<button class="btn pat" data-act="autoall" ${dis()}>남은 부재 자동으로</button>`) + lessonHTML()
       + `<h3>정림사지 둘러보기</h3>${seg([['baekje', '백제 때 정림사<br><small>중문·금당·강당·회랑</small>'], ['today', '오늘날 정림사지<br><small>터·보호각·박물관</small>']], 'era', S.era || 'baekje')}<p class="note">${(S.era || 'baekje') === 'today' ? '오늘날 금당과 회랑은 터만 남았고, 강당 자리에 고려 때 석조여래좌상을 모신 보호각(1993)이 있습니다. 가까이에 정림사지박물관(2006 개관)이 있습니다.' : '남쪽에서 북쪽으로 중문·오층석탑·금당·강당이 한 줄로 서고, 둘레를 회랑이 감쌌습니다(북쪽이 더 넓은 사다리꼴). 중문 앞에는 연못 두 개가 있었습니다.'}</p>`
       + `<h3>어떤 탑을 쌓을까</h3>${seg([['hist', '정림사지 비례<br><small>검이불루</small>'], ['ornate', '화려하게 지은 탑<br><small>화이불치를 어김</small>']], 's2m', s.ornament ? 'ornate' : 'hist')}<p class="note">${s.ornament ? '몸돌을 높이고 지붕돌을 넓히고 장식석까지 얹은 탑입니다. 같은 지진에서 정림사지 비례와 견주어 보세요.' : '실제 정림사지 오층석탑의 비례 그대로입니다.'}</p>`
@@ -717,7 +724,7 @@ function panelHTML() {
   return head('셋째 마당 · 창작', '나만의 백제 탑') + `<div class="reals">${photo('jeong', 1)}${photo('neung', 1)}</div>` + crit
     + `<div class="facts"><div><span>부재</span><b>${S.design.length}</b></div><div><span>높이</span><b>${st.height.toFixed(1)}m</b></div><div><span>무게중심</span><b>${st.height ? Math.round(st.comY / st.height * 100) : 0}%</b></div></div>`
     + `<h3>자재 비율 (무게)</h3><div class="bars">${Object.keys(MATERIALS).map(id => `<div class="bar"><span>${MATERIALS[id].name}</span><div class="track"><div style="width:${st.byMat[id] / T * 100}%;background:${MAT_INFO[id].sw}"></div></div><span>${Math.round(st.byMat[id] / T * 100)}%</span></div>`).join('')}</div>`
-    + `<h3>충청 국가유산 예시 탑</h3><p class="note">불러와서 그대로 시험하거나, 부재를 집어 고쳐 보세요.</p><div class="ex-grid">${Object.entries(EXAMPLES).map(([k, e]) => `<button class="ex" data-ex="${k}" aria-pressed="${S.example === k}" ${dis()}>${e.img ? `<img src="${e.img}" alt="">` : '<span class="ex-mix" aria-hidden="true"></span>'}<b>${e.name}</b><small>${e.tag}</small></button>`).join('')}</div>`
+    + `<h3>충청 국가유산 예시 탑</h3><p class="note">백제 시대 석탑으로 오늘까지 남은 것은 익산 미륵사지 석탑과 부여 정림사지 오층석탑 둘뿐입니다. 그래서 이 게임에서는 두 탑만 지진을 버티고, 나머지 예시 탑은 일부러 무너지게 했습니다(무량사·남매탑·팔상전은 고려·조선 때 지은 탑으로 실제로는 지금도 서 있습니다).</p><div class="ex-grid">${Object.entries(EXAMPLES).map(([k, e]) => `<button class="ex" data-ex="${k}" aria-pressed="${S.example === k}" ${dis()}>${e.img ? `<img src="${e.img}" alt="">` : '<span class="ex-mix" aria-hidden="true"></span>'}<b>${e.name}</b><small>${e.tag}</small></button>`).join('')}</div>`
     + `<div class="row"><button class="btn line" data-act="heritage" aria-haspopup="dialog">국가유산 안내</button><button class="btn line" data-act="clear" ${S.design.length && !S.testing ? '' : 'disabled'}>모두 지우기</button></div>`
     + `<h3>내진 기록 순위</h3>${records(REC.s3.map(r => [`${r.t} · 부재 ${r.n}`, r.m]), '한계 도전을 마치면 기록이 남습니다.')}`;
 }
@@ -842,12 +849,13 @@ function planToDesign(build) {
   });
 }
 const EXAMPLES = {
-  jeong: { name: '부여 정림사지 오층석탑', tag: '충남 · 백제', img: 'pagoda-jeongnimsa.svg', design: () => planToDesign(r => buildJeongnimsa(r)) },
-  muryang: { name: '부여 무량사 오층석탑', tag: '충남 · 고려 · 백제계', img: 'pagoda-muryangsa.svg', design: () => planToDesign(r => buildJeongnimsa(r, { taper: 0.9, roof: 2.0, body: 0.8, first: 0.95, steps: 2, rt: 0.3, tone: 'warm' })) },
-  cheongnyang: { name: '공주 청량사지 남매탑', tag: '충남 · 고려 · 백제계 · 오층과 칠층', img: 'pagoda-cheongnyangsa.svg', design: () => planToDesign(r => { buildJeongnimsa(r, { k: 0.55, x: -2.1, taper: 0.86, roof: 1.65, first: 1.2, tone: 'pink' }); buildJeongnimsa(r, { k: 0.55, x: 2.1, stories: 7, taper: 0.9, roof: 1.6, first: 1.05, body: 0.85, tone: 'pink' }); }) },
-  neung: { name: '능사 오층목탑 (재현)', tag: '충남 · 백제 · 재현', img: 'pagoda-neungsa.svg', design: () => planToDesign(r => buildNeungsa(r)) },
-  palsang: { name: '보은 법주사 팔상전', tag: '충북 · 조선 · 목탑', img: 'pagoda-palsangjeon.svg', design: () => planToDesign(r => buildPalsang(r)) },
-  mix: { name: '세 자재 섞은 연습 탑', tag: '돌·나무·문양전', img: null, design: () => sampleDesign() },
+  jeong: { name: '부여 정림사지 오층석탑', tag: '충남 · 백제 · 오늘까지 남음', img: 'pagoda-jeongnimsa.svg', design: () => planToDesign(r => buildJeongnimsa(r)) },
+  mireuk: { name: '익산 미륵사지 석탑', tag: '전북 · 백제 639년 · 오늘까지 남음', img: 'pagoda-mireuksa.svg', design: () => planToDesign(r => buildJeongnimsa(r, { stories: 6, k: 1.1, first: 1.2, taper: 0.92, roof: 1.55, body: 0.75 })) },
+  muryang: { fragile: true, name: '부여 무량사 오층석탑', tag: '충남 · 고려 · 백제계', img: 'pagoda-muryangsa.svg', design: () => planToDesign(r => buildJeongnimsa(r, { taper: 0.9, roof: 2.0, body: 0.8, first: 0.95, steps: 2, rt: 0.3, tone: 'warm' })) },
+  cheongnyang: { fragile: true, name: '공주 청량사지 남매탑', tag: '충남 · 고려 · 백제계 · 오층과 칠층', img: 'pagoda-cheongnyangsa.svg', design: () => planToDesign(r => { buildJeongnimsa(r, { k: 0.55, x: -2.1, taper: 0.86, roof: 1.65, first: 1.2, tone: 'pink' }); buildJeongnimsa(r, { k: 0.55, x: 2.1, stories: 7, taper: 0.9, roof: 1.6, first: 1.05, body: 0.85, tone: 'pink' }); }) },
+  neung: { fragile: true, name: '능사 오층목탑 (재현)', tag: '충남 · 백제 · 재현', img: 'pagoda-neungsa.svg', design: () => planToDesign(r => buildNeungsa(r)) },
+  palsang: { fragile: true, name: '보은 법주사 팔상전', tag: '충북 · 조선 · 목탑', img: 'pagoda-palsangjeon.svg', design: () => planToDesign(r => buildPalsang(r)) },
+  mix: { fragile: 3, name: '세 자재 섞은 연습 탑', tag: '돌·나무·문양전', img: null, design: () => sampleDesign() },
 };
 function sampleDesign() {
   const d = [], add = (mat, shape, x, y, z, parent = null, joint) => { d.push({ mat, shape, pos: [x, y, z], rot: 0, parent, joint, anchor: parent != null ? [x, y - SHAPES[shape].size[1] / 2, z] : null }); return d.length - 1; };
@@ -1059,16 +1067,16 @@ const fx = new THREE.Group(); scene.add(fx);
 const PEOPLE = {};
 function personTex(kind) { // 탑 일러스트와 같은 화풍의 SVG(people.js)를 캔버스 텍스처로
   if (PEOPLE[kind]) return PEOPLE[kind];
-  const c = document.createElement('canvas'); c.width = 240; c.height = 440;
+  const c = document.createElement('canvas'); c.width = 520; c.height = 512;
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; PEOPLE[kind] = t;
-  const img = new Image(); img.onload = () => { c.getContext('2d').drawImage(img, 0, 0, 240, 440); t.needsUpdate = true; };
+  const img = new Image(); img.onload = () => { c.getContext('2d').drawImage(img, 0, 0, 520, 512); t.needsUpdate = true; };
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(PEOPLE_SVG[kind]); return t;
 }
 let shadowTex = null;
 function person(kind, x, z, h0 = 1.75) {
-  const h = h0 * 1.35; // 그림 속 인물처럼 조금 크게(읽히도록)
+  const h = h0 * 1.4; // 만화풍 인물(2~3등신)은 조금 크게
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: personTex(kind), transparent: true, depthWrite: false }));
-  s.scale.set(h * 120 / 220, h, 1); s.center.set(0.5, 0.02); s.position.set(x, 0, z); fx.add(s);
+  s.scale.set(h * 260 / 256, h, 1); s.center.set(0.5, 16 / 256); s.position.set(x, 0, z); fx.add(s);
   if (!shadowTex) { const c = document.createElement('canvas'); c.width = 128; c.height = 40; const g = c.getContext('2d'); g.fillStyle = 'rgba(95,91,82,.35)'; g.beginPath(); g.ellipse(64, 20, 60, 15, 0, 0, 7); g.fill(); shadowTex = new THREE.CanvasTexture(c); }
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(h * 0.5, h * 0.16), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
   sh.rotation.x = -Math.PI / 2; sh.position.set(x, 0.01, z); fx.add(sh); s.userData.shadow = sh;
@@ -1092,6 +1100,14 @@ const isWood = b => b.mat === 'pine' || b.tint === 'tile' || b.tint === 'gold';
 function towerBox() { let h = 0, r = 0; for (const b of sim.blocks) { const t = b.body.translation(); h = Math.max(h, t.y + b.size[1] / 2); r = Math.max(r, Math.abs(t.x) + b.size[0] / 2, Math.abs(t.z) + b.size[2] / 2); } return { h: h || 3, r: r || 2 }; }
 const say = (text, color = '#fff') => banner(text, color);
 
+const SCENES = { fire: 'scenes/war-660.svg', rain: 'scenes/rain-repair.svg', wind: 'scenes/wind-429.svg' };
+let sceneT;
+function showScene(kind, ms = 4200) {
+  const el = $('#sceneCard'); if (!el) return;
+  el.querySelector('img').src = SCENES[kind]; el.hidden = false; el.classList.remove('out');
+  clearTimeout(sceneT); sceneT = setTimeout(() => { el.classList.add('out'); sceneT = setTimeout(() => { el.hidden = true; }, 600); }, ms);
+}
+document.addEventListener('click', e => { const el = e.target.closest && e.target.closest('#sceneCard'); if (el) { clearTimeout(sceneT); el.hidden = true; } });
 function startDisaster(kind) {
   if (S.testing || DIS || !sim.blocks.length) return;
   resetDisaster();
@@ -1102,6 +1118,7 @@ function startDisaster(kind) {
     start: new Map(sim.blocks.map(b => { const t = b.body.translation(); return [b, [t.x, t.y, t.z]]; })),
     dur: kind === 'rain' ? (stone ? 8 : 19) : kind === 'fire' ? (stone ? 17 : 13) : 10 };
   S.dirty = kind !== 'rain' || stone ? true : S.dirty; S.last = null; S.disasterMsg = null;
+  showScene(kind);
   if (kind === 'rain') {
     const n = 1600, pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - .5) * (r * 2 + 8); pos[i * 3 + 1] = Math.random() * (h + 6); pos[i * 3 + 2] = (Math.random() - .5) * (r * 2 + 8); }

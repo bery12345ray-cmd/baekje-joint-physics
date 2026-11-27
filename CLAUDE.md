@@ -52,7 +52,8 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 ## 백제 마을 · 정림사 가람 · 인물
 
 - `src/game/village.js`: 첫째·둘째 마당 둘레 백제 마을(초가·기와집·나무). 둘째 마당은 정림사 가람(남→북 중문·석탑·금당·강당, 북쪽이 넓은 사다리꼴 회랑, 중문 앞 연못 둘)과 "오늘날 정림사지"(잔디, 금당·회랑 터, 강당 자리 석조여래좌상 보호각 1993, 정림사지박물관 2006) 전환. 재료(VMAT)는 탑과 따로라 재해 때 마을만 탄다(villageTick).
-- `src/game/people.js`: 재해 장면 인물 SVG(목수 둘, 백제군, 나당 연합군, 소정방, 백성 둘). 탑 일러스트와 같은 먹선(#5f5b52, 2px)·낮은 채도 색. 시작할 때 미리 불러 둔다.
+- 인물 그림체: 교육 만화풍(2~3등신). `src/game/chibi.js`가 그리고 `people.js`(3D 빌보드)와 `scripts/draw-chibi-scenes.mjs`(장면 그림 `public/scenes/war-660·rain-repair·wind-429·characters.svg`)가 함께 쓴다. 재해를 시작하면 장면 그림(#sceneCard)을 잠깐 띄운다.
+- 셋째 마당 예시: 백제 시대 석탑으로 오늘까지 남은 미륵사지·정림사지만 지진을 버티고, 나머지 예시(fragile)는 이음을 풀고 미끄럽게 하고 흔들림을 키워(sim.quakeGain) 일부러 무너지게 한다. 카드에 "실제로는 지금도 서 있다"는 점을 밝힌다.
 
 ## 충청 예시 탑 (셋째 마당)
 
