@@ -3,7 +3,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Sim, MATERIALS, pga, buildJeongnimsa, buildNeungsa, buildPalsang, woodBase, woodPosts, woodBeam, woodRoof, woodStory, woodFinial } from './sim.js';
 import { buildPart, PART_NAMES } from './parts.js';
-import { PEOPLE_SVG } from './people.js';
 import { buildVillage, VMAT, resetVillageMats } from './village.js';
 
 const $ = s => document.querySelector(s);
@@ -1054,34 +1053,12 @@ const ro = new ResizeObserver(() => { const w = stageEl.clientWidth, h = stageEl
   camera.updateProjectionMatrix(); });
 ro.observe(stageEl);
 let last = performance.now(), frameN = 0;
-const WIND = 4.5; // 큰 바람: 가벼운 목탑은 기와가 날고 무너지며, 무거운 석탑은 버틴다
-// ---------- 재해 시험: 역사 장면으로 보는 비·불·바람 ----------
-//  비: 빗물에 썩은 기둥 하나가 무너지고, 목수들이 1층·2층·3층을 차례로 고친다
-//  불: 660년 나당 연합군의 사비성 공격, 불화살과 함락 / 석탑에는 소정방의 비문(평제탑)
-//  바람: 《삼국사기》 백제본기 기록(비유왕 3년 429년 "地震 大風飛瓦", 동성왕 14년 492년 "大風拔木")
+const WIND = 6; // 태풍: 같은 바람에 가벼운 목탑은 쓰러지고 무거운 석탑은 버틴다(오프라인 시험: 목탑 대부분 이탈, 석탑 0/19)
+// ---------- 재해 시험: 비(빗물·썩음) · 불(화재) · 바람(태풍) — 목탑과 석탑이 어떻게 다른지 눈으로 본다 ----------
+const WOOD_MATS = ['pine', 'dan', 'door', 'plaster', 'green', 'goldPaint', 'giwa', 'tile', 'broken'];
 const MAT0 = Object.fromEntries(Object.entries(MATS).filter(([, m]) => m.color).map(([k, m]) => [k, m.color.clone()]));
 let DIS = null;
 const fx = new THREE.Group(); scene.add(fx);
-
-// ----- 게임 화풍의 일러스트 인물(캔버스로 그린 빌보드) -----
-const PEOPLE = {};
-function personTex(kind) { // 탑 일러스트와 같은 화풍의 SVG(people.js)를 캔버스 텍스처로
-  if (PEOPLE[kind]) return PEOPLE[kind];
-  const c = document.createElement('canvas'); c.width = 520; c.height = 512;
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; PEOPLE[kind] = t;
-  const img = new Image(); img.onload = () => { c.getContext('2d').drawImage(img, 0, 0, 520, 512); t.needsUpdate = true; };
-  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(PEOPLE_SVG[kind]); return t;
-}
-let shadowTex = null;
-function person(kind, x, z, h0 = 1.75) {
-  const h = h0 * 1.4; // 만화풍 인물(2~3등신)은 조금 크게
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: personTex(kind), transparent: true, depthWrite: false }));
-  s.scale.set(h * 260 / 256, h, 1); s.center.set(0.5, 16 / 256); s.position.set(x, 0, z); fx.add(s);
-  if (!shadowTex) { const c = document.createElement('canvas'); c.width = 128; c.height = 40; const g = c.getContext('2d'); g.fillStyle = 'rgba(95,91,82,.35)'; g.beginPath(); g.ellipse(64, 20, 60, 15, 0, 0, 7); g.fill(); shadowTex = new THREE.CanvasTexture(c); }
-  const sh = new THREE.Mesh(new THREE.PlaneGeometry(h * 0.5, h * 0.16), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
-  sh.rotation.x = -Math.PI / 2; sh.position.set(x, 0.01, z); fx.add(sh); s.userData.shadow = sh;
-  return s;
-}
 function label(text, x, y, z, { gold = false, w = 3.2 } = {}) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 112; const g = c.getContext('2d');
   g.fillStyle = gold ? 'rgba(20,19,17,.88)' : 'rgba(234,228,215,.94)'; g.strokeStyle = gold ? '#c8a054' : '#9c917c'; g.lineWidth = 4;
@@ -1091,158 +1068,84 @@ function label(text, x, y, z, { gold = false, w = 3.2 } = {}) {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false, depthWrite: false }));
   s.scale.set(w, w * 112 / 512, 1); s.position.set(x, y, z); s.renderOrder = 20; fx.add(s); return s;
 }
-function clearFx() { for (const c of [...fx.children]) { fx.remove(c); c.geometry && c.geometry.dispose(); if (c.material) { c.material.map && !Object.values(PEOPLE).includes(c.material.map) && c.material.map.dispose(); c.material.dispose(); } } }
+
 function resetDisaster() {
-  DIS = null; clearFx();
+  DIS = null;
+  for (const c of [...fx.children]) { fx.remove(c); c.geometry && c.geometry.dispose(); }
   for (const [k, c] of Object.entries(MAT0)) { MATS[k].color.copy(c); if (MATS[k].emissive) MATS[k].emissive.setHex(0); }
 }
 const isWood = b => b.mat === 'pine' || b.tint === 'tile' || b.tint === 'gold';
 function towerBox() { let h = 0, r = 0; for (const b of sim.blocks) { const t = b.body.translation(); h = Math.max(h, t.y + b.size[1] / 2); r = Math.max(r, Math.abs(t.x) + b.size[0] / 2, Math.abs(t.z) + b.size[2] / 2); } return { h: h || 3, r: r || 2 }; }
-const say = (text, color = '#fff') => banner(text, color);
-
-const SCENES = { fire: 'scenes/war-660.svg', rain: 'scenes/rain-repair.svg', wind: 'scenes/wind-429.svg' };
-let sceneT;
-function showScene(kind, ms = 4200) {
-  const el = $('#sceneCard'); if (!el) return;
-  el.querySelector('img').src = SCENES[kind]; el.hidden = false; el.classList.remove('out');
-  clearTimeout(sceneT); sceneT = setTimeout(() => { el.classList.add('out'); sceneT = setTimeout(() => { el.hidden = true; }, 600); }, ms);
-}
-document.addEventListener('click', e => { const el = e.target.closest && e.target.closest('#sceneCard'); if (el) { clearTimeout(sceneT); el.hidden = true; } });
 function startDisaster(kind) {
   if (S.testing || DIS || !sim.blocks.length) return;
   resetDisaster();
   if (S.stage === 2 && S.era === 'today') { S.era = 'baekje'; syncVillage(); }
   S.villageDamaged = true;
-  const { h, r } = towerBox(), stone = S.stage === 2;
-  DIS = { kind, t: 0, h, r, stone, wood: sim.blocks.filter(isWood), burned: 0, flames: [], arrows: [], cast: [], ev: new Set(),
-    start: new Map(sim.blocks.map(b => { const t = b.body.translation(); return [b, [t.x, t.y, t.z]]; })),
-    dur: kind === 'rain' ? (stone ? 8 : 19) : kind === 'fire' ? (stone ? 17 : 13) : 10 };
-  S.dirty = kind !== 'rain' || stone ? true : S.dirty; S.last = null; S.disasterMsg = null;
-  showScene(kind);
-  if (kind === 'rain') {
+  const { h, r } = towerBox(), wood = sim.blocks.filter(isWood);
+  DIS = { kind, t: 0, h, r, wood, dur: kind === 'fire' ? 9 : 7, burned: 0, flames: [], start: new Map(sim.blocks.map(b => { const t = b.body.translation(); return [b, [t.x, t.y, t.z]]; })) };
+  if (kind !== 'rain') S.dirty = true; S.last = null; S.disasterMsg = null;
+  if (kind === 'rain') { // 빗줄기
     const n = 1600, pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - .5) * (r * 2 + 8); pos[i * 3 + 1] = Math.random() * (h + 6); pos[i * 3 + 2] = (Math.random() - .5) * (r * 2 + 8); }
+    for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - .5) * (r * 2 + 6); pos[i * 3 + 1] = Math.random() * (h + 6); pos[i * 3 + 2] = (Math.random() - .5) * (r * 2 + 6); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     DIS.drops = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x9fb6c8, size: 0.07, transparent: true, opacity: 0.75, depthWrite: false })); fx.add(DIS.drops);
-    say('장맛비가 몇 해째 이어집니다', '#e8f2ff');
+    banner('장맛비가 내립니다', '#e8f2ff');
   }
-  if (kind === 'fire') {
-    // 백제군은 탑 앞을 지키고, 나당 연합군이 멀리서 다가온다
-    const inTemple = S.stage === 2; // 둘째 마당은 회랑 안마당: 백제군은 탑 앞, 연합군은 남쪽 중문으로 들어온다
-    DIS.cast = (inTemple ? [[3.2, 3.6], [4.6, 2.4], [1.8, 4.8]] : [[-3.6, 2.4], [-4.3, 0.9], [-2.7, 3.7]]).map(([x, z]) => ({ s: person('baekje', x, z), side: 'b' }))
-      .concat((inTemple ? [[0, 16], [1.8, 17], [-1.8, 17], [3.4, 15.5], [-3.4, 15.5]].map(([x, z]) => [x, z, x * 0.6 + 2.2, 7.6]) : [[10, -6], [11.5, -4.5], [9, -8], [12, -7.5], [10.5, -9.5]].map(([x, z]) => [x, z, x * 0.45, z * 0.45])).map(([x, z, tx, tz]) => ({ s: person('enemy', x, z), side: 'e', to: [tx, tz] })));
-    const flameGeo = new THREE.ConeGeometry(0.22, 0.7, 8);
-    for (const b of (DIS.wood.length ? DIS.wood : sim.blocks.slice(2, 10))) { const f = new THREE.Mesh(flameGeo, new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.85, depthWrite: false })); f.userData.b = b; f.userData.p = Math.random() * 6; f.visible = false; fx.add(f); DIS.flames.push(f); }
+  if (kind === 'fire') { // 나무 부재마다 불꽃
+    const flameGeo = new THREE.ConeGeometry(0.22, 0.7, 8), flameMat = new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.85, depthWrite: false });
+    const src = DIS.wood.length ? DIS.wood : sim.blocks.slice(0, 6);
+    for (const b of src) { const f = new THREE.Mesh(flameGeo, flameMat.clone()); f.userData.b = b; f.userData.p = Math.random() * 6; f.visible = false; fx.add(f); DIS.flames.push(f); }
     DIS.flames.sort((a, b) => a.userData.b.body.translation().y - b.userData.b.body.translation().y);
-    say('660년 7월, 신라와 당의 연합군이 사비성으로 쳐들어옵니다', '#ffd2a8');
+    banner('벼락이 떨어져 불이 붙었습니다', '#ffd2a8');
   }
-  if (kind === 'wind') {
-    const n = 70, pos = new Float32Array(n * 6);
-    for (let i = 0; i < n; i++) { const x = (Math.random() - .5) * 18, y = Math.random() * (h + 2), z = (Math.random() - .5) * 12; pos.set([x, y, z, x + 1.4, y, z], i * 6); }
+  if (kind === 'wind') { // 바람 줄기
+    const n = 60, pos = new Float32Array(n * 6);
+    for (let i = 0; i < n; i++) { const x = (Math.random() - .5) * 16, y = Math.random() * (h + 2), z = (Math.random() - .5) * 10; pos.set([x, y, z, x + 1.4, y, z], i * 6); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     DIS.streaks = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 })); fx.add(DIS.streaks);
-    // 기록 속 백성과 나무(큰 바람에 나무가 뽑혔다)
-    DIS.cast = [[-4.2, 1.2], [-3.2, 2.8]].map(([x, z], n) => ({ s: person(n ? 'villager2' : 'villager', x, z, 1.6) }));
-    DIS.trees = [[-6, -2], [-2, -7], [5, -8]].map(([x, z]) => { const tr = new THREE.Group(); const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 2.4, 8), MATS.pine); trunk.position.y = 1.2; const top = new THREE.Mesh(new THREE.ConeGeometry(1, 2.2, 9), new THREE.MeshStandardMaterial({ color: 0x5f7d55, roughness: 1, flatShading: true })); top.position.y = 3; tr.add(trunk, top); tr.position.set(x, 0, z); fx.add(tr); return tr; });
-    say('《삼국사기》 백제본기에 남은 큰 바람', '#fff');
+    banner('거센 바람(태풍)이 붑니다', '#fff');
   }
   render();
 }
-const once = (id, t) => (DIS.t >= t && !DIS.ev.has(id) ? (DIS.ev.add(id), true) : false);
 function disasterTick(dt) {
-  const D = DIS; if (!D) return; D.t += dt; const T = D.t;
-  fx.traverse(o => { if (o.isSprite && o.userData.shadow) o.userData.shadow.position.set(o.position.x, Math.max(0.01, o.position.y + 0.01), o.position.z); });
+  const D = DIS; if (!D) return; D.t += dt; const k = Math.min(1, D.t / D.dur);
   villageTick(D, dt);
-  for (const c of D.cast) if (c.s.material.rotation && c.fall) c.s.material.opacity = Math.max(0.25, c.s.material.opacity - dt * 0.3);
-  // ---------- 비: 썩음 → 한 곳 붕괴 → 목수들이 층마다 보수 ----------
   if (D.kind === 'rain') {
-    const p = D.drops.geometry.attributes.position; const raining = T < 6;
-    D.drops.visible = raining;
-    if (raining) { for (let i = 0; i < p.count; i++) { let y = p.getY(i) - dt * 14; if (y < 0) y += D.h + 6; p.setY(i, y); } p.needsUpdate = true; }
-    const k = Math.min(1, T / 6);
-    for (const m of ['pine', 'dan', 'door', 'plaster']) if (!D.repaired) MATS[m].color.copy(MAT0[m]).lerp(new THREE.Color(0x4f5a3c), k * 0.55);
-    for (const m of ['granite', 'granite_warm', 'granite_pink']) if (MATS[m]) MATS[m].color.copy(MAT0[m]).multiplyScalar(1 - 0.15 * k);
-    if (D.stone) { if (once('end', 7.5)) { S.disasterMsg = '몇 해 장마에도 돌은 썩지 않습니다. 정림사지 석탑은 보수 없이 1,300년 넘게 그 자리를 지켰습니다.'; say('석탑은 썩지 않습니다', '#e8f2ff'); } }
-    else {
-      if (once('rot', 6)) { // 1층 기둥 하나가 썩어 내려앉는다
-        const posts = sim.blocks.filter(b => b.part === 'gidung').sort((a, b) => a.body.translation().y - b.body.translation().y);
-        const post = posts.find(b => Math.abs(b.body.translation().x) > 0.3) || posts[0];
-        if (post) { const t = post.body.translation(); D.hole = [t.x, t.z]; const fy = t.y + post.size[1] / 2;
-          sim.removeBlock(post);
-          // 그 위 1층 창방·처마·기와의 이음이 풀려 빈 모서리 쪽으로 주저앉는다
-          for (const j of [...sim.joints]) { const ya = j.a.body.translation().y; if (ya > fy - 0.3 && ya < fy + 0.6) sim.removeJoint(j); }
-          for (const b of sim.blocks) { const p = b.body.translation(); if (p.y > fy - 0.2 && p.y < fy + 0.6) b.body.applyImpulse({ x: t.x * 0.6 * b.mass, y: -0.5 * b.mass, z: t.z * 0.6 * b.mass }, true); } }
-        say('1층 기둥 하나가 썩어 무너져 내렸습니다', '#e8f2ff');
-      }
-      // 목수들이 1층 → 2층 → 3층 차례로 보수
-      const floors = [...new Set(sim.blocks.filter(b => b.part === 'gongpo').map(b => +b.body.translation().y.toFixed(1)))].sort((a, b) => a - b).slice(0, 3);
-      floors.forEach((fy, i) => {
-        const t0 = 8 + i * 3.4;
-        if (once('f' + i, t0)) {
-          for (const c of D.cast) fx.remove(c.s); D.cast = [];
-          const y = Math.max(0, fy - 1.1), rr = D.r * 0.5;
-          D.cast = [[-rr - 0.9, rr * 0.4], [-rr - 0.3, rr + 0.6], [rr * 0.2, rr + 1.2]].map(([x, z], n) => ({ s: person(n === 1 ? 'carpenter2' : 'carpenter', x, z, 1.55), y }));
-          for (const c of D.cast) c.s.position.y = y;
-          if (D.tag) fx.remove(D.tag); D.tag = label(`${i + 1}층 보수 중`, -rr - 1.2, y + 2.4, rr * 0.8, { w: 2.6 });
-          say(`목수들이 ${i + 1}층의 썩은 부재를 갈아 끼웁니다`, '#fff');
-        }
-      });
-      for (const c of D.cast) c.s.position.y = (c.y || 0) + Math.abs(Math.sin(T * 6 + c.s.position.x)) * 0.12; // 망치질
-      if (once('done', 8 + floors.length * 3.4)) D.finishRepair = true;
-    }
+    const p = D.drops.geometry.attributes.position;
+    for (let i = 0; i < p.count; i++) { let y = p.getY(i) - dt * 14; if (y < 0) y += D.h + 6; p.setY(i, y); }
+    p.needsUpdate = true;
+    // 젖고 이끼 끼며 썩어 간다(나무만). 돌은 조금 어두워질 뿐
+    for (const m of ['pine', 'dan', 'door', 'plaster']) MATS[m].color.copy(MAT0[m]).lerp(new THREE.Color(0x4f5a3c), k * 0.55);
+    for (const m of ['granite', 'granite_warm', 'granite_pink']) if (MATS[m]) MATS[m].color.copy(MAT0[m]).multiplyScalar(1 - 0.18 * k);
   }
-  // ---------- 불: 660년 전쟁 ----------
   if (D.kind === 'fire') {
-    for (const c of D.cast) if (c.side === 'e' && c.to && T < 4) { const k = Math.min(1, T / 4); c.s.position.x += (c.to[0] - c.s.position.x) * k * dt * 2; c.s.position.z += (c.to[1] - c.s.position.z) * k * dt * 2; }
-    if (T > 3 && T < 7 && Math.random() < dt * 6) { // 불화살
-      const e = D.cast.filter(c => c.side === 'e')[Math.floor(Math.random() * 5)];
-      const a = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 5), new THREE.MeshBasicMaterial({ color: 0xffa040 }));
-      a.userData = { from: e.s.position.clone().setY(1.4), to: new THREE.Vector3((Math.random() - .5) * D.r, D.h * (0.3 + Math.random() * 0.6), (Math.random() - .5) * D.r), t: 0 }; fx.add(a); D.arrows.push(a);
-    }
-    for (const a of D.arrows) { const u = a.userData; u.t = Math.min(1, u.t + dt * 1.2); a.position.lerpVectors(u.from, u.to, u.t); a.position.y += Math.sin(u.t * Math.PI) * 2.5; a.visible = u.t < 1; a.lookAt(u.to); a.rotateX(Math.PI / 2); }
-    if (once('arrows', 3)) say('불화살이 쏟아집니다', '#ffd2a8');
-    const burnT = T - 4.5;
-    if (burnT > 0) {
-      const lit = Math.min(D.flames.length, Math.floor(burnT * (D.stone ? 3 : 4)));
-      D.flames.forEach((f, i) => { const b = f.userData.b; const on = i < lit && sim.blocks.includes(b) && (!D.stone || burnT < 4); f.visible = on; if (!on) return; const t = b.body.translation(); f.userData.p += dt * 9; f.position.set(t.x, t.y + b.size[1] / 2 + 0.25, t.z); f.scale.set(1, 0.8 + 0.35 * Math.sin(f.userData.p * 1.7), 1); f.material.color.setHSL(0.06 + 0.03 * Math.sin(f.userData.p), 1, 0.55); });
-      if (!D.stone) {
-        const k = Math.min(1, burnT / 5);
-        for (const m of ['pine', 'dan', 'door', 'plaster', 'green', 'goldPaint']) { MATS[m].color.copy(MAT0[m]).lerp(new THREE.Color(0x1d1915), k); if (MATS[m].emissive) MATS[m].emissive.setRGB(0.25 * (1 - k), 0.06 * (1 - k), 0); }
-        const due = Math.floor(Math.max(0, burnT - 1.5) * 4.5);
-        while (D.burned < due && D.burned < D.wood.length) { const b = D.wood[D.burned++]; if (sim.blocks.includes(b)) sim.removeBlock(b); }
+    const lit = Math.min(D.flames.length, Math.floor(D.t * 4)); // 아래에서 위로 번진다
+    D.flames.forEach((f, i) => {
+      const b = f.userData.b; if (!sim.blocks.includes(b)) { f.visible = false; return; }
+      f.visible = i < lit; if (!f.visible) return;
+      const t = b.body.translation(); f.userData.p += dt * 9;
+      f.position.set(t.x + Math.sin(f.userData.p) * 0.05, t.y + b.size[1] / 2 + 0.25, t.z);
+      f.scale.set(1, 0.8 + 0.35 * Math.sin(f.userData.p * 1.7), 1); f.material.color.setHSL(0.06 + 0.03 * Math.sin(f.userData.p), 1, 0.55);
+    });
+    for (const m of ['pine', 'dan', 'door', 'plaster', 'green', 'goldPaint']) { MATS[m].color.copy(MAT0[m]).lerp(new THREE.Color(0x1d1915), Math.min(1, k * 1.6)); if (MATS[m].emissive) MATS[m].emissive.setRGB(0.25 * Math.max(0, 1 - k), 0.06 * Math.max(0, 1 - k), 0); }
+    // 불탄 나무 부재는 하나씩 무너져 사라진다(돌은 남는다)
+    if (D.t > 2.2 && D.wood.length) {
+      const due = Math.floor((D.t - 2.2) * 4.5);
+      while (D.burned < due && D.burned < D.wood.length) {
+        const b = D.wood[D.burned++]; if (sim.blocks.includes(b)) sim.removeBlock(b);
       }
-    }
-    if (once('fall', 8)) { for (const c of D.cast) if (c.side === 'b') { c.s.material.rotation = Math.PI / 2; c.fall = true; c.s.center.set(0.5, 0.5); c.s.position.y = 0.3; } say('사비성이 무너지고 백제가 멸망합니다', '#ffd2a8'); }
-    if (!D.stone && once('end', 12)) { S.disasterMsg = '660년 7월, 나당 연합군에 사비성이 함락되었습니다. 전쟁의 불길은 나무로 지은 건물을 쉽게 태웠습니다. 능사지와 미륵사지의 목탑도 오늘날 터만 남았습니다.'; say('목탑은 불에 타 사라졌습니다', '#ffd2a8'); }
-    if (D.stone) { // 석탑은 타지 않고, 당 장수 소정방이 비문을 새긴다
-      if (once('general', 9.5)) { D.gen = person('general', 2, 13, 1.85); D.genTag = label('당나라 장수 소정방', 2, 3.2, 13, { w: 2.6 }); say('불길이 지나가도 석탑은 타지 않았습니다', '#fff'); }
-      if (D.gen && T > 9.5 && T < 12.5) { const k = dt * 1.2; D.gen.position.x += (D.r * 0.5 + 1.8 - D.gen.position.x) * k; D.gen.position.z += (D.r * 0.2 - D.gen.position.z) * k; D.genTag.position.set(D.gen.position.x, 3.2, D.gen.position.z); }
-      if (once('carve', 12.5)) {
-        const t1 = sim.blocks.find(b => b.part === 'tapsin1'), y = t1 ? t1.body.translation().y : 1.5;
-        D.carve = label('大唐平百濟國碑銘', 0.9, y, 1.3, { gold: true, w: 3.4 });
-        say('소정방이 1층 몸돌에 "백제를 평정했다"는 글을 새겼습니다', '#ffe7b0');
-      }
-      if (once('pyeongje', 15)) { label('"평제탑"이라 잘못 불린 수모', 0.9, (D.carve ? D.carve.position.y : 1.5) + 1.5, 1.3, { w: 3.4 }); }
-      if (once('end', 16.5)) S.disasterMsg = '국보로 유명한 정림사지오층석탑은 부여 정림사터에 세워져 있는 석탑으로, 좁고 낮은 1단의 기단(基壇) 위에 5층의 탑신(塔身)을 세운 모습이다. 신라와의 연합군으로 백제를 멸망시킨 당나라 장수 소정방이 ‘백제를 정벌한 기념탑’이라는 뜻의 글귀를 이 탑에 남겨놓아, 한때는 ‘평제탑’이라고 잘못 불리어지는 수모를 겪기도 하였다.';
     }
   }
-  // ---------- 바람: 《삼국사기》 기록 ----------
   if (D.kind === 'wind') {
     const p = D.streaks.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) { let x = p.getX(i) + dt * 16; if (x > 9) x -= 18; p.setX(i, x); }
     p.needsUpdate = true;
-    if (once('rec1', 0.2)) D.rec = label('429년 11월 · 地震 大風飛瓦', -2, D.h + 2.2, 0, { gold: true, w: 4.2 });
-    if (once('say1', 1.5)) say('비유왕 3년(429) 11월, 땅이 흔들리고 큰 바람에 기와가 날렸다', '#fff');
-    if (once('rec2', 5.5)) { fx.remove(D.rec); D.rec = label('492년 4월 · 大風拔木', -2, D.h + 2.2, 0, { gold: true, w: 4.2 }); say('동성왕 14년(492) 4월, 큰 바람에 나무가 뽑혔다', '#fff'); }
-    const gust = 0.6 + 0.4 * Math.sin(T * 2.3) + 0.3 * Math.sin(T * 5.1);
-    if (T < 8.5) for (const b of sim.blocks) {
+    const gust = 0.6 + 0.4 * Math.sin(D.t * 2.3) + 0.3 * Math.sin(D.t * 5.1);
+    for (const b of sim.blocks) { // 바람은 넓은 면과 높은 곳에 세게, 무게에는 상관없이 같은 힘
       const t = b.body.translation(), area = b.size[1] * Math.max(b.size[0], b.size[2]), hk = 0.5 + t.y / D.h;
-      b.body.applyImpulse({ x: WIND * gust * area * hk * dt, y: b.tint === 'tile' ? WIND * 0.4 * area * dt : 0, z: 0 }, true); // 기와는 들려 날아간다
+      b.body.applyImpulse({ x: WIND * gust * area * hk * dt, y: 0, z: 0 }, true);
     }
-    if (D.trees && T > 5.5) for (const tr of D.trees) tr.rotation.z = Math.max(tr.rotation.z - dt * 0.6, -1.45); // 뽑혀 쓰러지는 나무
-    for (const c of D.cast) c.s.position.x += dt * 0.15 * gust;
   }
-  if (D.kind === 'rain' && D.finishRepair) return finishDisaster();
   if (D.t >= D.dur) finishDisaster();
 }
 // 석탑 말고 마을과 법당은 무너지고 탄다
@@ -1252,13 +1155,13 @@ function villageTick(D, dt) {
   if (!D.vil) { // 무너질 차례를 정한다(탑에 가까운 것부터)
     D.vil = items.map(it => ({ ...it, d: Math.hypot(it.x, it.z) })).sort((a, b) => a.d - b.d);
     D.vil.forEach((v, i) => { v.at = 0; v.done = false; v.i = i; });
-    if (D.kind === 'rain') { const th = D.vil.filter(v => v.kind === 'thatch'); th.slice(0, 2).forEach((v, i) => (v.at = 6.3 + i * 0.6)); }
-    if (D.kind === 'fire') D.vil.forEach((v, i) => (v.at = 5.5 + i * (7 / Math.max(1, D.vil.length))));
-    if (D.kind === 'wind') D.vil.forEach(v => (v.at = v.kind === 'tree' ? 5.5 + Math.random() : v.kind === 'thatch' ? 1.5 + Math.random() * 4 : 0));
+    if (D.kind === 'rain') { const th = D.vil.filter(v => v.kind === 'thatch'); th.slice(0, 2).forEach((v, i) => (v.at = 3.5 + i * 0.8)); }
+    if (D.kind === 'fire') D.vil.forEach((v, i) => (v.at = 1.2 + i * (6 / Math.max(1, D.vil.length))));
+    if (D.kind === 'wind') D.vil.forEach(v => (v.at = v.kind === 'tree' ? 3 + Math.random() : v.kind === 'thatch' ? 1.5 + Math.random() * 4 : 0));
     D.vilFlames = [];
   }
-  if (D.kind === 'fire' && T > 4.5) { // 마을 재료가 검게 탄다
-    const k = Math.min(1, (T - 4.5) / 6);
+  if (D.kind === 'fire' && T > 1) { // 마을 재료가 검게 탄다
+    const k = Math.min(1, (T - 1) / 6);
     for (const m of ['wood', 'plaster', 'straw', 'red', 'green', 'gold', 'leaf', 'giwa']) VMAT[m].color.copy(VMAT[m].userData0 || (VMAT[m].userData0 = VMAT[m].color.clone())).lerp(new THREE.Color(0x1d1915), k * 0.9);
   }
   for (const v of D.vil) {
@@ -1278,25 +1181,28 @@ function villageTick(D, dt) {
 }
 function finishDisaster() {
   const D = DIS; if (!D) return;
-  const stone = D.stone;
+  const woodLeft = sim.blocks.filter(isWood).length, stone = S.stage === 2;
   const moved = sim.blocks.filter(b => { const p0 = D.start.get(b), t = b.body.translation(); return !p0 || Math.hypot(t.x - p0[0], t.y - p0[1], t.z - p0[2]) > 0.4; }).length;
   if (D.kind === 'rain') {
-    if (!stone) { // 보수가 끝나면 썩은 기둥을 새로 갈아 다시 세운 탑으로
-      DIS = null; rebuild();
-      S.disasterMsg = '빗물에 썩은 1층 기둥이 무너지자, 목수들이 1층·2층·3층을 차례로 고쳐 다시 세웠습니다. 목탑은 이렇게 썩은 기둥과 기와를 늘 갈아 끼워야 했습니다. 돌로 지은 석탑은 이런 보수가 거의 필요 없습니다.';
-      say('보수가 끝나 목탑을 다시 세웠습니다', '#fff'); render(); return;
+    if (!stone) { // 썩은 결구는 쉽게 풀리고, 썩은 나무는 쉽게 부러진다(오프라인 시험: 바르게 지은 목탑도 세기 5에서 무너짐)
+      for (const j of sim.joints) { j.breakDeg *= 0.3; j.k *= 0.3; }
+      for (const b of sim.blocks) if (b.strength) { b.strength *= 0.3; b.col.setContactForceEventThreshold(b.strength); }
     }
-    S.disasterMsg = S.disasterMsg || '돌은 비에 젖어도 썩지 않습니다.';
+    S.disasterMsg = stone ? '돌은 비에 젖어도 썩지 않습니다. 정림사지 석탑은 1,300년 넘게 비바람을 견뎠습니다.' : '빗물이 스며 기둥과 결구가 썩었습니다. 이 상태로 세기 5 지진 시험을 해 보세요. 멀쩡할 때는 버티던 목탑이 무너집니다. 목탑은 기와를 갈고 기둥을 바꾸는 수리를 늘 해야 했습니다.';
+    banner(stone ? '석탑은 썩지 않습니다' : '나무가 썩었습니다', '#e8f2ff');
+    fx.remove(D.drops); D.drops.geometry.dispose(); DIS = null;
+    render(); return;
   }
-  if (D.kind === 'fire' && !stone) S.disasterMsg = S.disasterMsg || '목탑은 불에 타 사라졌습니다.';
+  if (D.kind === 'fire') {
+    S.disasterMsg = stone ? '불길이 지나가도 돌은 타지 않습니다. 석탑은 불에 강해 오늘날까지 남았습니다.' : `목탑이 불에 타 무너졌습니다(남은 나무 부재 ${woodLeft}개). 능사지와 미륵사지의 목탑도 오늘날 터만 남았습니다.`;
+    banner(stone ? '석탑은 불에 타지 않습니다' : '목탑이 불타 무너졌습니다', '#ffd2a8');
+  }
   if (D.kind === 'wind') {
-    S.disasterMsg = (stone ? `무거운 석탑은 같은 바람에도 거의 움직이지 않았습니다(자리를 벗어난 부재 ${moved}개).` : `가볍고 지붕이 넓은 목탑은 바람을 그대로 받아 부재 ${moved}개가 자리를 벗어나고 기와가 날아갔습니다.`)
-      + ' 《삼국사기》 백제본기에는 비유왕 3년(429) "땅이 흔들리고 큰 바람에 기와가 날렸다(地震 大風飛瓦)", 동성왕 14년(492) "큰 바람에 나무가 뽑혔다(大風拔木)"는 기록이 있습니다. 이 기록들이 탑을 두고 쓴 것은 아니지만, 바람이 지붕과 기와에 얼마나 위험했는지 보여 줍니다.';
-    say(stone ? '석탑은 큰 바람에도 끄떡없습니다' : '목탑의 기와가 날아갔습니다', '#fff');
+    S.disasterMsg = stone ? `무거운 돌탑은 같은 태풍에도 거의 움직이지 않았습니다(자리를 벗어난 부재 ${moved}개).` : moved ? `가볍고 지붕이 넓은 목탑은 바람을 그대로 받아 부재 ${moved}개가 자리를 벗어났습니다. 목탑은 태풍에 지붕과 기와가 날아가 자주 고쳐 지어야 했습니다.` : '목탑이 바람에 크게 흔들렸지만 결구가 흔들림을 흘려보내 버텼습니다.';
+    banner(stone ? '석탑은 태풍에도 끄떡없습니다' : moved ? '목탑이 태풍에 무너졌습니다' : '목탑이 바람에 크게 흔들렸습니다', '#fff');
   }
-  for (const f of D.flames) f.visible = false; for (const a of D.arrows) a.visible = false;
-  if (D.streaks) { fx.remove(D.streaks); D.streaks.geometry.dispose(); }
-  if (D.drops) D.drops.visible = false;
+  for (const c of [...fx.children]) { if (D.kind === 'fire' && c.isMesh) continue; fx.remove(c); c.geometry && c.geometry.dispose(); }
+  for (const f of D.flames) f.visible = false;
   DIS = null; render();
 }
 function disasterHTML() {
@@ -1351,5 +1257,5 @@ try {
   if (KIOSK) showTitle();
   window.__game = { S, sim, asm, autoPlace, render, FPS, PERF, setPerf, renderer, scene, camera, proj: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 } catch (err) { console.error(err); $('#err').style.display = 'grid'; }
-setTimeout(() => { syncVillage(true); for (const k of Object.keys(PEOPLE_SVG)) personTex(k); }, 0); // 마을을 세우고 인물 그림을 미리 불러 둔다
+setTimeout(() => syncVillage(true), 0); // 시작할 때 마을을 세운다
 window.__disTick = (dt) => { sim.frame(dt); disasterTick(dt); for (const m of meshes) { const b = m.userData.block, t = b.body.translation(), r = b.body.rotation(); m.position.set(t.x, t.y, t.z); m.quaternion.set(r.x, r.y, r.z, r.w); } renderer.render(scene, camera); return DIS && DIS.t; }; // 개발 확인용
