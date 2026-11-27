@@ -105,7 +105,7 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadow
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 stageEl.prepend(renderer.domElement);
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x1a3443, 30, 72); // 먼 곳은 브랜드 딥 오션 안개로(배경 그라디언트와 이어지게)
+scene.fog = new THREE.Fog(0xcfcebf, 30, 72);
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
 camera.position.set(12, 8.5, 14);
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -383,7 +383,7 @@ function finishTest() {
   if (sess().trials.length === 3 && !sess().quiz.post) setTimeout(() => openSheet('quiz-post'), 1400);
 }
 let bannerT;
-function banner(text, color) { const b = $('#banner'); b.textContent = text; b.classList.toggle('danger', color === '#ffc2a8'); /* 무너짐 알림만 위험색(나머지는 프로스트 화이트, CSS) */ b.classList.add('show'); clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('show'), 2600); }
+function banner(text, color) { const b = $('#banner'); b.textContent = text; b.style.color = color; b.classList.add('show'); clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('show'), 2600); }
 
 // ---------- 진단 근거: 물리 로그의 원값과, 같은 로그에서 규칙으로 뽑은 진단 범주 ----------
 const CAT = {
@@ -1193,9 +1193,9 @@ function label(text, x, y, z, { gold = false, w = 3.2 } = {}) {
   const font = `${gold ? 800 : 700} ${gold ? 46 : 40}px ${CANVAS_FONT}`;
   fontReady(font, text).then(() => {
     g.clearRect(0, 0, 512, 112);
-    g.fillStyle = 'rgba(13,18,22,.88)'; g.strokeStyle = gold ? '#6BA2C0' : 'rgba(107,162,192,.6)'; g.lineWidth = 3; // 브랜드: 어두운 유리 알약 + 사이버 블루 테
+    g.fillStyle = gold ? 'rgba(20,19,17,.88)' : 'rgba(234,228,215,.94)'; g.strokeStyle = gold ? '#c8a054' : '#9c917c'; g.lineWidth = 4;
     g.beginPath(); g.roundRect(4, 4, 504, 104, 26); g.fill(); g.stroke();
-    g.fillStyle = '#CBE1EE'; g.font = font; /* 프로스트 화이트 글자 */ g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 58, 480);
+    g.fillStyle = gold ? '#e2c27c' : '#1d1b18'; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 58, 480);
     t.needsUpdate = true; s.material.opacity = 1;
   });
   return s;
