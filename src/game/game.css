@@ -425,3 +425,13 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
 #dropBar .btn{flex:none;min-height:44px;padding:0 16px;border-radius:999px;font-size:15px}
 #dropBar .btn.line{color:var(--jeon);border-color:#6b6455}
 @media(max-width:400px){#dropBar span{display:none}}
+/* 놓기 확인 막대: 다른 판과 같은 전돌 카드 톤(밝은 화강 바탕, 둥근 모서리, 부드러운 그림자, 송명 부재 이름) */
+#dropBar{display:grid;grid-template-columns:1fr 1.4fr;gap:8px;width:min(340px,calc(100% - 20px));padding:12px;border-radius:var(--r-lg);background:var(--jeon);border:1px solid rgba(201,190,166,.95);box-shadow:var(--sh-2);color:var(--ink);font-size:14px}
+#dropBar[hidden]{display:none}
+#dropBar span{grid-column:1/-1;display:block;white-space:normal;text-align:center;color:var(--mute);line-height:1.45}
+#dropBar b{display:block;font:19px/1.3 var(--D);color:#7a5d1c}
+#dropBar .btn{min-height:46px;border-radius:var(--r-sm);font-size:15.5px;padding:0 12px}
+#dropBar .btn.line{color:var(--ink);border-color:#9c917c;background:transparent}
+#dropBar .btn.pat{color:#fff}
+@media(max-width:400px){#dropBar span{display:block}}
+#dropBar{left:0;right:0;margin:0 auto;transform:none}
