@@ -24,6 +24,7 @@ function ensure() {
   el = document.createElement('div'); el.id = 'npc'; el.hidden = true; el.setAttribute('role', 'status');
   el.innerHTML = `${npcImg('guide')}<p class="npc-say"></p>`;
   document.getElementById('stage').appendChild(el);
+  draggable(el);
   // 반응 뒤 다음 조작에서 guide 자세로
   for (const t of ['pointerdown', 'keydown']) addEventListener(t, e => {
     if (waitNext && !e.target.closest?.('#npc, #result, #lvup, #share')) { waitNext = false; setTimeout(() => tip ? companionTip(tip, true) : companion('guide', '다른 재해로도 시험해 봐요.'), 60); }
@@ -33,12 +34,13 @@ function ensure() {
 export function companion(pose, text, { stay = 7000 } = {}) {
   const e = ensure(), wrap = e.querySelector('.npc-wrap'), img = e.querySelector('img'), prev = e.dataset.pose;
   clearTimeout(hideT);
-  const say = e.querySelector('.npc-say'); if (say.dataset.t !== text) { say.dataset.t = text; say.innerHTML = sentText(text); say.classList.remove('in'); void say.offsetWidth; say.classList.add('in'); }
+  const say = e.querySelector('.npc-say'); if (say.dataset.t !== text) { say.dataset.t = text; say.innerHTML = sentText(text); say.classList.remove('in'); void say.offsetWidth; say.classList.add('in'); untuck(); }
   if (prev !== pose) { img.src = NPC[pose]; img.alt = ALT[pose]; img.width = NPC_SIZE[pose][0]; img.height = NPC_SIZE[pose][1]; }
   wrap.className = `npc-wrap pose-${pose}`; e.dataset.pose = pose;
   // 바뀔 때만 한 번 움직임: panic은 흔들기, celebrate는 톡 튀어나오기
   if (pose !== prev || e.hidden) { void wrap.offsetWidth; if (pose === 'panic') wrap.classList.add('shake'); if (pose === 'celebrate') wrap.classList.add('pop'); }
-  e.hidden = false;
+  const wasHidden = e.hidden; e.hidden = false;
+  if (wasHidden) { restorePos(); untuck(); }
   waitNext = pose !== 'guide';
   if (pose === 'guide' && stay) hideT = setTimeout(() => { e.hidden = true; }, stay);
 }
@@ -51,6 +53,48 @@ export function companionTip(text, force = false) {
 }
 export const companionPanic = extra => companion('panic', `${pick(PANIC)} ${extra || ''}`.trim());
 export const companionCheer = extra => companion('celebrate', `${pick(CHEER)} ${extra || ''}`.trim());
+// 2026-11-28 예진: "시야를 가린다" → 작게, 끌어서 옮길 수 있게(자리는 localStorage에 기억), 말풍선은 6초 뒤 접힘.
+// 석공을 누르면(끌지 않고) 말풍선을 다시 펴거나 접는다. 화면 오른쪽 절반에 두면 말풍선이 왼쪽으로 열린다.
+const POS_KEY = 'baekje-npc-pos', TUCK_MS = 6000;
+let tuckT = 0;
+function untuck() { if (!el) return; el.classList.remove('tuck'); clearTimeout(tuckT); tuckT = setTimeout(() => el && el.classList.add('tuck'), TUCK_MS); }
+function box() { const p = el.offsetParent; if (!p || getComputedStyle(el).position === 'fixed') return { left: 0, top: 0, w: innerWidth, h: innerHeight }; const r = p.getBoundingClientRect(); return { left: r.left, top: r.top, w: p.clientWidth, h: p.clientHeight }; }
+function moveTo(x, y) { // x, y: 부모(넓은 화면은 화면) 안에서 석공 왼쪽 위
+  const b = box(), wr = el.querySelector('.npc-wrap').getBoundingClientRect();
+  x = Math.max(0, Math.min(b.w - wr.width, x)); y = Math.max(0, Math.min(b.h - wr.height, y));
+  const flip = x + wr.width / 2 > b.w / 2; el.classList.toggle('flip', flip);
+  // 말풍선이 왼쪽에 열리면 오른쪽 끝을 기준으로 둔다(말풍선 길이가 바뀌어도 석공은 제자리)
+  Object.assign(el.style, flip ? { left: 'auto', right: b.w - x - wr.width + 'px' } : { left: x + 'px', right: 'auto' }, { top: y + 'px', bottom: 'auto' });
+  return { x: x / b.w, y: y / b.h };
+}
+function restorePos() { try { const p = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); if (p) { const b = box(); moveTo(p.x * b.w, p.y * b.h); } } catch { /* 저장소 없음 */ } }
+function draggable(root) {
+  const wrap = root.querySelector('.npc-wrap');
+  wrap.title = '끌어서 옮길 수 있어요 · 누르면 말풍선을 접고 펴요';
+  let drag = null;
+  wrap.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const r = wrap.getBoundingClientRect();
+    drag = { id: e.pointerId, dx: e.clientX - r.left, dy: e.clientY - r.top, sx: e.clientX, sy: e.clientY, moved: false };
+    wrap.setPointerCapture(e.pointerId);
+  });
+  wrap.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+    drag.moved = true; root.classList.add('drag');
+    const b = box(); drag.pos = moveTo(e.clientX - b.left - drag.dx, e.clientY - b.top - drag.dy);
+  });
+  const up = e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    root.classList.remove('drag');
+    if (drag.moved) { try { localStorage.setItem(POS_KEY, JSON.stringify(drag.pos)); } catch { /* 저장소 없음 */ } }
+    else if (root.classList.contains('tuck')) untuck(); else { clearTimeout(tuckT); root.classList.add('tuck'); }
+    drag = null;
+  };
+  wrap.addEventListener('pointerup', up); wrap.addEventListener('pointercancel', up);
+  addEventListener('resize', () => { if (!root.hidden) restorePos(); });
+}
 export function hideCompanion() { if (el) { el.hidden = true; waitNext = false; clearTimeout(hideT); } }
 export const panicLine = () => pick(PANIC);
 export const cheerLine = () => pick(CHEER);

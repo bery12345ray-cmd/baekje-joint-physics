@@ -390,7 +390,7 @@ function finishTest() {
   }
   saveRec(); render();
   if (S.crit) $('#critique').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  if (sess().trials.length === 3 && !sess().quiz.post) S.quizAfter = true; // 확인 질문은 결과 창을 닫은 뒤에
+  // 확인 질문(퀴즈)은 2026-11-28 예진 요청으로 뺐다(첫 시험 전·세 번째 시험 뒤 모두)
 }
 let bannerT;
 function banner(text, color) { const b = $('#banner'); b.textContent = text; b.style.color = color; b.classList.toggle('small', text.length > 14); b.classList.add('show'); clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('show'), 2600); }
@@ -468,7 +468,7 @@ function openResult(L, e, diag, prevBest) {
   hideCompanion();
   showResult({ kind: L.kind, stageName: STAGE_NAME[S.stage].replace('확장 · ', ''), score: L.score, years: L.years ?? 0, collapsed: L.collapsed, chips, rows, crit: stoneCritique(L, e, diag, acc), others,
     boardLabel: getNick() ? '순위판 보기' : '순위판에 올리기', say: L.collapsed ? panicLine() : cheerLine(), pose, shots: S.shots || [], levelName: lvN ? badgeText(lvN) : '',
-    onRetest: k => { S.disaster = k; try { localStorage.setItem('baekje-disaster', k); } catch { /* 저장소 없음 */ } dockOpen = true; render(); if (!sess().quiz.pre) return openSheet('quiz-pre', 'ramp'); startTest('ramp'); },
+    onRetest: k => { S.disaster = k; try { localStorage.setItem('baekje-disaster', k); } catch { /* 저장소 없음 */ } dockOpen = true; render(); startTest('ramp'); },
     onRebuild: () => resetStage(),
     onBoard: () => { const nk = getNick(); focusBoard(!nk); },
     onClose: () => {
@@ -1018,7 +1018,7 @@ ui.addEventListener('click', e => {
   if (a === 'autoall') autoPlace();
   if (a === 'pick') S.pick = !S.pick;
   if (d.dis && !S.testing) { S.disaster = d.dis; try { localStorage.setItem('baekje-disaster', d.dis); } catch { /* 저장소 없음 */ } showBoard(S.stage, localBest, d.dis); }
-  if (a === 'ramp') { if (!sess().quiz.pre) return openSheet('quiz-pre', a); startTest(a); }
+  if (a === 'ramp') startTest(a);
   if (a === 'leaflet') return stageLeaflet(true);
   if (a === 'why') return openSheet('why');
   if (a === 'stop') { sim.quake.done = true; sim.quake.aborted = !sim.quake.collapsed; return; } // 도중에 멈추면 점수 없음
@@ -1148,9 +1148,6 @@ function chartSVG(trials) {
   const dots = trials.map((tr, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(tr.maxSurvived).toFixed(1)}" r="3.5" class="lc-dot"><title>${tr.attempt}번째 · ${tr.maxSurvived.toFixed(1)}</title></circle>`).join('');
   return `<svg class="lchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="시도별 재해 시험 점수: ${trials.map(tr => tr.maxSurvived.toFixed(1)).join(', ')}">${grid}${xs}${n > 1 ? `<polyline points="${pts}" class="lc-line"/>` : ''}${dots}</svg><p class="note lc-cap">가로: 시도 순서 · 세로: 재해 시험 점수(게임 속 세기)</p>`;
 }
-function quizRow(label, a) {
-  return `<div class="qa"><span>${label}</span>${a ? `<b class="${a.correct ? 'ok' : 'miss'}">${a.correct ? '○' : '×'} ${esc(a.text)}</b>` : '<b class="none">아직 답하지 않음</b>'}</div>`;
-}
 function learnHTML() {
   const s = sess(), tr = s.trials, best = Math.max(0, ...tr.map(t => t.maxSurvived));
   const rows = tr.slice(-8).reverse().map(t => `<tr><td>${t.attempt}</td><td>${t.stageName}</td><td>${t.materialMix.화강암}/${t.materialMix.소나무}/${t.materialMix.문양전}</td><td>${t.maxSurvived ? t.maxSurvived.toFixed(1) : '–'}</td><td>${esc(t.causeLabel)}</td></tr>`).join('');
@@ -1158,9 +1155,6 @@ function learnHTML() {
     <div class="facts"><div><span>시험</span><b>${tr.length}회</b></div><div><span>최고 점수</span><b>${best ? best.toFixed(1) : '–'}</b></div><div><span>자주 나온 원인</span><b class="sm">${tr.length ? esc(topCause(tr)) : '–'}</b></div></div>
     <h3>재해 시험 점수</h3>${chartSVG(tr)}
     ${tr.length ? `<div class="tscroll"><table class="trials"><thead><tr><th>#</th><th>마당</th><th>화강암/소나무/문양전 %</th><th>점수</th><th>원인</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
-    <h3>확인 질문 · ${QUIZ.q}</h3>
-    ${quizRow('첫 시험 전', s.quiz.pre)}${quizRow('세 번째 시험 후', s.quiz.post)}
-    ${s.quiz.pre && s.quiz.post ? `<p class="note">정답: ${esc(QUIZ.choices.find(c => c[0] === QUIZ.answer)[1])}</p>` : !s.quiz.post ? '<p class="note">세 번째 지진 시험을 마치면 같은 질문을 다시 묻습니다.</p>' : ''}
     <div class="row"><button class="btn line dev" data-x="download">기록 JSON 내려받기</button><button class="btn pat" data-x="close">닫기</button></div>`;
 }
 function topCause(tr) {
