@@ -649,11 +649,12 @@ function planAt(ev) {
   if (snap) { if (Math.abs(y - it.pos[1]) < 0.3) y = Math.max(y, it.pos[1]); else snap = false; }
   return { x, z, y, top, size, under, snap };
 }
-// ---------- 손가락 조작: 한 손가락으로 끌어 떼면 바로 놓인다(확인 묻지 않음). 두 손가락이 닿으면 놓기를 멈추고 지도 옮기기·확대만 ----------
-// ---------- 손가락(휴대폰·태블릿) ----------
-// 한 손가락: 들고 있는 부재(금빛 상자) 위에서 시작하면 부재 옮기기(떼면 놓임), 빈 곳에서 시작하면 돌려 보기.
-// 두 손가락: 옮기기 + 벌려 확대(동시에). 손가락 기기에서는 금빛 상자를 탑 옆에 늘 띄워 두어 잡을 수 있게 한다.
-const touches = new Set(); let multi = false, fingerPiece = false;
+// ---------- 손가락(휴대폰·태블릿) · 2026-11-28 예진 ----------
+// 한 손가락(부재를 들고 있을 때): 어디서든 끌면 부재가 손가락보다 LIFT px 위에 떠서 보이고(손가락에 가리지 않게), 떼면 그 자리에 놓인다.
+//   끌지 않고 톡 치면 친 자리에 바로 놓인다. 부재를 다 놓았거나 시험 중이면 한 손가락 = 돌려 보기(OrbitControls).
+// 두 손가락: 벌리고 오므려 확대·축소, 비틀거나 옆으로 밀면 시점이 돌고, 위아래로 밀면 내려다보는 각도가 바뀐다(직접 계산, OrbitControls는 쉰다).
+const touches = new Map(); let multi = false, fingerPiece = false, tdrag = null, two = null;
+const LIFT = 76;
 const isTouchUI = () => document.body.classList.contains('touch');
 if (matchMedia('(pointer: coarse)').matches || matchMedia('(hover: none)').matches) document.body.classList.add('touch');
 function commitDrop(p) {
@@ -667,33 +668,63 @@ function restGhost() {
   const x = it.pos[0] + 2.6, z = it.pos[2] + 2.6, { top } = surfaceTop(x, z, it.size[0], it.size[2]);
   setGhost(it.size, it); ghost.position.set(x + sim.gx, top + it.size[1] / 2 + 0.005, z + sim.gz); ghostMat.color.set(GHOST); ghostMat.opacity = 0.5; ghost.visible = true;
 }
-// 손가락이 금빛 상자 위(화면에서 상자 둘레 + 28px)에 닿았는가
-const _gb = new THREE.Box3(), _gv = new THREE.Vector3();
-function hitsGhost(ev) {
-  if (!ghost.visible) return false;
-  const r = renderer.domElement.getBoundingClientRect(); _gb.setFromObject(ghost);
-  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-  for (let i = 0; i < 8; i++) { _gv.set(i & 1 ? _gb.max.x : _gb.min.x, i & 2 ? _gb.max.y : _gb.min.y, i & 4 ? _gb.max.z : _gb.min.z).project(camera);
-    const sx = r.left + (_gv.x + 1) / 2 * r.width, sy = r.top + (1 - _gv.y) / 2 * r.height; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
-  return ev.clientX > x0 - 28 && ev.clientX < x1 + 28 && ev.clientY > y0 - 28 && ev.clientY < y1 + 28;
+const _sph = new THREE.Spherical(), _off = new THREE.Vector3();
+function orbitBy(dAz, dPol, k) { // 시점 중심(controls.target) 둘레로 돌리고(dAz 옆, dPol 위아래) k배 멀어지기
+  _off.copy(camera.position).sub(controls.target); _sph.setFromVector3(_off);
+  _sph.theta += dAz; _sph.phi = Math.max(0.12, Math.min(controls.maxPolarAngle, _sph.phi + dPol));
+  _sph.radius = Math.max(controls.minDistance, Math.min(controls.maxDistance, _sph.radius * k));
+  _off.setFromSpherical(_sph); camera.position.copy(controls.target).add(_off); camera.lookAt(controls.target);
 }
-renderer.domElement.addEventListener('pointerdown', ev => {
+function fingerGhost(x, y) { // 손가락 (x, y)보다 LIFT 위 자리에 부재 그림자
+  const p = planAt({ clientX: x, clientY: y - LIFT });
+  ghost.visible = !!p;
+  if (p) { setGhost(p.size, S.stage === 3 ? null : held()); ghost.position.set(p.x + sim.gx, p.y, p.z + sim.gz); ghostMat.color.set(GHOST); ghostMat.opacity = 0.72; }
+}
+const twoState = () => { const [a, b] = [...touches.values()]; return { d: Math.hypot(b.x - a.x, b.y - a.y), ang: Math.atan2(b.y - a.y, b.x - a.x), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 }; };
+const cv = renderer.domElement;
+cv.addEventListener('pointerdown', ev => {
   if (ev.pointerType !== 'touch') return;
   if (!isTouchUI()) { document.body.classList.add('touch'); render(); }
-  touches.add(ev.pointerId);
-  if (touches.size === 1) { fingerPiece = placing() && hitsGhost(ev); controls.touches.ONE = fingerPiece ? null : THREE.TOUCH.ROTATE; } // OrbitControls보다 먼저(capture) 정한다
-  if (touches.size > 1) { multi = true; downAt = null; fingerPiece = false; } // 두 손가락: 지도 옮기기·확대만
+  touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (touches.size === 1) {
+    fingerPiece = placing(); controls.touches.ONE = fingerPiece ? null : THREE.TOUCH.ROTATE; // OrbitControls보다 먼저(capture) 정한다
+    tdrag = { x: ev.clientX, y: ev.clientY, moved: false };
+  } else { multi = true; fingerPiece = false; tdrag = null; two = touches.size === 2 ? twoState() : null; restGhost(); } // 두 손가락: 놓기를 멈추고 확대·돌려 보기
 }, { capture: true });
-for (const t of ['pointerup', 'pointercancel']) renderer.domElement.addEventListener(t, ev => {
-  if (ev.pointerType !== 'touch') return;
+cv.addEventListener('pointermove', ev => {
+  if (ev.pointerType !== 'touch' || !touches.has(ev.pointerId)) return;
+  touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (multi) {
+    if (touches.size !== 2 || !two) return;
+    const n = twoState(), H = cv.clientHeight || innerHeight;
+    let da = n.ang - two.ang; if (da > Math.PI) da -= 2 * Math.PI; else if (da < -Math.PI) da += 2 * Math.PI;
+    orbitBy(-da - 2 * Math.PI * (n.cx - two.cx) / H * 0.8, -2 * Math.PI * (n.cy - two.cy) / H * 0.5, n.d > 10 && two.d > 10 ? two.d / n.d : 1);
+    two = n; return;
+  }
+  if (!fingerPiece || !tdrag) return;
+  if (!tdrag.moved && Math.hypot(ev.clientX - tdrag.x, ev.clientY - tdrag.y) > 6) tdrag.moved = true;
+  if (tdrag.moved) fingerGhost(ev.clientX, ev.clientY);
+}, { capture: true });
+function touchUp(ev, d) {
+  if (S.testing) return;
+  if (S.dirty) { if (!d.moved) { rebuild(); render(); banner('탑을 다시 세웠습니다', '#fff'); } return; }
+  if (S.stage === 3 && S.pick) { if (!d.moved) pickUp(ev); return; }
+  if (!fingerPiece) return; // 돌려 보기만 했다
+  const p = planAt(d.moved ? { clientX: ev.clientX, clientY: ev.clientY - LIFT } : ev); // 끌었으면 떠 있던 자리, 톡 쳤으면 친 자리
+  if (p) commitDrop(p);
+}
+for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, ev => {
+  if (ev.pointerType !== 'touch' || !touches.has(ev.pointerId)) return;
   touches.delete(ev.pointerId);
-  if (!touches.size) setTimeout(() => { multi = false; fingerPiece = false; controls.touches.ONE = THREE.TOUCH.ROTATE; restGhost(); }, 0);
-});
+  if (!multi && t === 'pointerup' && tdrag) touchUp(ev, tdrag);
+  if (touches.size < 2) two = null;
+  if (!touches.size) setTimeout(() => { multi = false; fingerPiece = false; tdrag = null; controls.touches.ONE = placing() ? null : THREE.TOUCH.ROTATE; restGhost(); }, 0);
+}, { capture: true });
 // iOS Safari: 화면 전체가 확대되는 제스처 대신 장면이 받게
 for (const t of ['gesturestart', 'gesturechange', 'gestureend']) renderer.domElement.addEventListener(t, e => e.preventDefault());
 renderer.domElement.style.touchAction = 'none';
 renderer.domElement.addEventListener('pointermove', ev => {
-  if (ev.pointerType === 'touch' && (multi || !fingerPiece)) return; // 손가락으로 돌려 보는 중에는 상자를 건드리지 않는다
+  if (ev.pointerType === 'touch') return; // 손가락은 위 손가락 처리에서
   const active = !S.testing && !S.dirty && (S.stage === 3 ? !S.pick : !!held());
   const p = active ? planAt(ev) : null;
   ghost.visible = !!p;
@@ -702,11 +733,11 @@ renderer.domElement.addEventListener('pointermove', ev => {
 renderer.domElement.addEventListener('pointerleave', ev => { if (ev.pointerType !== 'touch') ghost.visible = false; });
 const placing = () => !S.testing && !S.dirty && (S.stage === 3 ? !S.pick : !!held());
 // 마우스: 부재를 들고 있으면 왼쪽 드래그 = 부재 옮기기, 아니면 왼쪽 드래그 = 지도(시점 중심) 옮기기. 오른쪽 드래그 = 돌려 보기, 휠 = 확대.
-// 손가락: 한 손가락 = 돌려 보기(금빛 상자 위에서 시작하면 부재 옮기기, 위 pointerdown에서 정함), 두 손가락 = 옮기기 + 벌려 확대.
+// 손가락: 위 손가락 처리(한 손가락 = 놓기 또는 돌려 보기, 두 손가락 = 확대·돌려 보기).
 function syncControls() {
   const on = placing();
   controls.mouseButtons.LEFT = on ? null : THREE.MOUSE.PAN; controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE; controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
-  if (!touches.size) controls.touches.ONE = THREE.TOUCH.ROTATE; controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+  if (!touches.size) controls.touches.ONE = on ? null : THREE.TOUCH.ROTATE; controls.touches.TWO = null; // 두 손가락은 직접 계산(orbitBy)
 }
 controls.screenSpacePanning = false; // 땅과 나란히 옮긴다
 // 탑이 화면 밖으로 완전히 나가지 않게: 시점 중심을 탑 둘레(카메라 거리의 32%, 최소 4·최대 12) 안으로 묶고 높이도 제한한다
@@ -719,14 +750,12 @@ controls.addEventListener('change', () => {
   if (dx || dy || dz) { t.x += dx; t.y += dy; t.z += dz; camera.position.x += dx; camera.position.y += dy; camera.position.z += dz; }
 });
 renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
-renderer.domElement.addEventListener('pointerdown', ev => { downAt = ev.button === 0 && !(ev.pointerType === 'touch' && multi) ? [ev.clientX, ev.clientY] : null; });
+renderer.domElement.addEventListener('pointerdown', ev => { downAt = ev.button === 0 && ev.pointerType !== 'touch' ? [ev.clientX, ev.clientY] : null; }); // 손가락은 touchUp
 renderer.domElement.addEventListener('pointerup', ev => {
-  if (S.testing || !downAt || ev.button !== 0 || (ev.pointerType === 'touch' && multi)) { downAt = null; return; }
+  if (ev.pointerType === 'touch' || S.testing || !downAt || ev.button !== 0) { downAt = null; return; }
   const moved = Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 6; downAt = null;
-  const finger = ev.pointerType === 'touch', piece = fingerPiece;
   if (moved && !placing()) return;
   if (S.dirty) { if (!moved) { rebuild(); render(); banner('탑을 다시 세웠습니다', '#fff'); } return; }
-  if (finger && !piece && !(S.stage === 3 && !moved)) return; // 손가락으로 돌려 보기만 했다(부재를 잡지 않음)
   if (S.stage === 3 && S.pick) return pickUp(ev);
   const p = planAt(ev); if (!p) return;
   commitDrop(p);
@@ -983,8 +1012,8 @@ const localBest = (st, dis = S.disaster) => st === 1 ? Math.max(0, ...Object.ent
 function render() {
   if (S.stage !== 3) { const A = asm(); if (S.stage === 1) S.tut.done = A.placed.length >= A.plan.length ? TUT.length - 1 : A.plan[A.placed.length].step; }
   const it = held();
-  const TOUCH_HINT = '한 손가락: 돌려 보기\n두 손가락: 옮기기 · 확대'; // 휴대폰 안내는 한 줄에 한 가지(white-space:pre-line)
-  $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : isTouchUI() ? (it ? `${it.name}: 금빛 상자를 끌어 제자리에 놓기\n${TOUCH_HINT}` : TOUCH_HINT) : it ? `${it.name}을(를) 끌어 제자리에서 떼면 놓입니다 · 오른쪽 드래그: 돌려 보기 · R: 처음부터` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · T: 돌리기 · 오른쪽 드래그: 돌려 보기') : '왼쪽 드래그: 지도 옮기기 · 오른쪽 드래그: 돌려 보기 · 휠: 확대 · R: 처음부터';
+  const TOUCH_HINT = '두 손가락: 벌려 확대 · 비틀어 돌려 보기'; // 휴대폰 안내는 한 줄에 한 가지(white-space:pre-line)
+  $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : isTouchUI() ? (it ? `${it.name}: 톡 치거나 끌어서 놓기\n${TOUCH_HINT}` : `한 손가락: 돌려 보기\n${TOUCH_HINT}`) : it ? `${it.name}을(를) 끌어 제자리에서 떼면 놓입니다 · 오른쪽 드래그: 돌려 보기 · R: 처음부터` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · T: 돌리기 · 오른쪽 드래그: 돌려 보기') : '왼쪽 드래그: 지도 옮기기 · 오른쪽 드래그: 돌려 보기 · 휠: 확대 · R: 처음부터';
   showTarget(); syncControls(); restGhost();
   // 꼬마 석공: 조립 중에는 들고 있는 부재 한마디(목업 02), 시험 중에는 숨는다
   if (!S.testing) companionTip(it ? PART_TIP[it.part] || `${it.name}을(를) 제자리에 놓아 봐요!` : '');
@@ -1323,9 +1352,11 @@ const placeTag = $('#placeTag'), _tb = new THREE.Box3(), _tp = new THREE.Vector3
 function placeTagTick() {
   const it = ghost.visible && !S.testing && S.stage !== 3 ? held() : null;
   if (!it || resultOpen()) { if (!placeTag.hidden) placeTag.hidden = true; return; }
-  _tb.setFromObject(ghost); _tp.set((_tb.min.x + _tb.max.x) / 2, _tb.max.y + 0.35, (_tb.min.z + _tb.max.z) / 2).project(camera);
-  const r = renderer.domElement.getBoundingClientRect(), x = r.left + (_tp.x + 1) / 2 * r.width, y = r.top + (1 - _tp.y) / 2 * r.height;
-  const t = `${it.name} · ${isTouchUI() ? '끌어서 놓기' : '여기에 놓기'}`; if (placeTag.textContent !== t) placeTag.textContent = t;
+  // 이름표는 부재 그림자의 화면 위 끝보다 12px 위에(납작한 부재를 위에서 볼 때 이름표가 그림자를 가리지 않게)
+  _tb.setFromObject(ghost); const r = renderer.domElement.getBoundingClientRect(); let y = 1e9;
+  for (let i = 0; i < 8; i++) { _tp.set(i & 1 ? _tb.max.x : _tb.min.x, i & 2 ? _tb.max.y : _tb.min.y, i & 4 ? _tb.max.z : _tb.min.z).project(camera); y = Math.min(y, r.top + (1 - _tp.y) / 2 * r.height - 12); }
+  _tp.set((_tb.min.x + _tb.max.x) / 2, _tb.max.y, (_tb.min.z + _tb.max.z) / 2).project(camera); const x = r.left + (_tp.x + 1) / 2 * r.width;
+  const t = `${it.name} · ${!isTouchUI() ? '여기에 놓기' : tdrag && tdrag.moved ? '떼면 여기에 놓여요' : '톡 치거나 끌어서 놓기'}`; if (placeTag.textContent !== t) placeTag.textContent = t;
   placeTag.style.transform = `translate(${x.toFixed(0)}px,${y.toFixed(0)}px) translate(-50%,-100%)`; if (placeTag.hidden) placeTag.hidden = false;
 }
 function loop(now) {
