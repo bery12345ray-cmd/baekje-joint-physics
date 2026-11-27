@@ -4,11 +4,14 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 
 @theme {
-  --color-baekje-togi: #2e2b27;  /* 토기 흑회 */
-  --color-baekje-jeon: #e9e4d8;  /* 전돌 회백 */
-  --color-baekje-gold: #b8923a;  /* 금동 */
-  --color-baekje-pat: #3f7d6e;   /* 청동녹 */
-  --color-baekje-red: #a8452c;   /* 적갈 */
+  --color-brand-deep-black: #080808;     /* design/brand/brand-tokens.json과 같은 값 */
+  --color-brand-midnight-black: #0D1216;
+  --color-brand-deep-ocean: #1A3443;
+  --color-brand-steel-blue: #396B86;
+  --color-brand-cyber-blue: #6BA2C0;
+  --color-brand-ice-blue: #A4CAE1;
+  --color-brand-frost-white: #CBE1EE;
+  --color-brand-danger: #F07A62;         /* 승인된 추가: 무너짐·실패·오류에만 */
 
   --font-display: "Pretendard Variable", Pretendard, system-ui, sans-serif;
   --font-sans: "Pretendard Variable", Pretendard, system-ui, sans-serif;

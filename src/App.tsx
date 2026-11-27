@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import markup from './game/markup.html?raw'
+import '../design/brand/brand-colors.css' // 브랜드 색 변수(기준: design/brand/brand-tokens.json, 값은 바꾸지 않음)
 import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css' // Pretendard Variable(SIL OFL), 글자 범위별로 나눈 woff2를 직접 싣는다
 import './game/game.css'
 

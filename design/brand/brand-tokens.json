@@ -1,0 +1,69 @@
+{
+  "palette": {
+    "deep-black": "#080808",
+    "midnight-black": "#0D1216",
+    "deep-ocean": "#1A3443",
+    "steel-blue": "#396B86",
+    "cyber-blue": "#6BA2C0",
+    "ice-blue": "#A4CAE1",
+    "frost-white": "#CBE1EE"
+  },
+  "roles": {
+    "primary": "#080808",
+    "secondary": "#396B86",
+    "accent": "#6BA2C0",
+    "highlight": "#CBE1EE"
+  },
+  "suggested_usage_ratio": {
+    "primary": 60,
+    "secondary": 20,
+    "accent": 15,
+    "highlight": 5
+  },
+  "gradient": {
+    "angle": "180deg",
+    "stops": [
+      {
+        "color": "#080808",
+        "position": "0%"
+      },
+      {
+        "color": "#080808",
+        "position": "35%"
+      },
+      {
+        "color": "#0D1216",
+        "position": "45%"
+      },
+      {
+        "color": "#1A3443",
+        "position": "55%"
+      },
+      {
+        "color": "#396B86",
+        "position": "65%"
+      },
+      {
+        "color": "#6BA2C0",
+        "position": "75%"
+      },
+      {
+        "color": "#A4CAE1",
+        "position": "85%"
+      },
+      {
+        "color": "#CBE1EE",
+        "position": "100%"
+      }
+    ],
+    "css": "linear-gradient(180deg, #080808 0%, #080808 35%, #0D1216 45%, #1A3443 55%, #396B86 65%, #6BA2C0 75%, #A4CAE1 85%, #CBE1EE 100%)"
+  },
+  "keywords": [
+    "Futuristic",
+    "Mystic",
+    "Immersive",
+    "Digital",
+    "Sophisticated"
+  ],
+  "status": "Proposed brand palette based on visual reference; not verified pixel samples."
+}

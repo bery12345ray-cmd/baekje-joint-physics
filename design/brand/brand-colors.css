@@ -1,0 +1,14 @@
+:root {
+  --brand-deep-black: #080808;
+  --brand-midnight-black: #0D1216;
+  --brand-deep-ocean: #1A3443;
+  --brand-steel-blue: #396B86;
+  --brand-cyber-blue: #6BA2C0;
+  --brand-ice-blue: #A4CAE1;
+  --brand-frost-white: #CBE1EE;
+  --brand-primary: var(--brand-deep-black);
+  --brand-secondary: var(--brand-steel-blue);
+  --brand-accent: var(--brand-cyber-blue);
+  --brand-highlight: var(--brand-frost-white);
+  --brand-gradient: linear-gradient(180deg, #080808 0%, #080808 35%, #0D1216 45%, #1A3443 55%, #396B86 65%, #6BA2C0 75%, #A4CAE1 85%, #CBE1EE 100%);
+}
