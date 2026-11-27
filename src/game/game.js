@@ -982,7 +982,10 @@ function kioskReset() {
 if (KIOSK) setInterval(() => { if (titleEl.hidden && !S.testing && performance.now() - lastInput > 90000) kioskReset(); }, 1000);
 
 // ---------- loop ----------
-const ro = new ResizeObserver(() => { const w = stageEl.clientWidth, h = stageEl.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); });
+const ro = new ResizeObserver(() => { const w = stageEl.clientWidth, h = stageEl.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h;
+  // 세로 휴대폰처럼 좁은 화면에서도 탑 전체 너비가 보이게 세로 화각을 넓힌다(가로 화각 유지)
+  const hf = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(20)) * 1.12); camera.fov = Math.min(78, Math.max(40, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(hf / 2) / camera.aspect))));
+  camera.updateProjectionMatrix(); });
 ro.observe(stageEl);
 let last = performance.now(), frameN = 0;
 function loop(now) {

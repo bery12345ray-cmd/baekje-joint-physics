@@ -370,3 +370,49 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
 @media(max-width:1600px) and (min-width:861px){#tabs a span{display:none}}
 @media(max-width:1440px) and (min-width:861px){#xbar .dev{display:none}.brand span{display:none}}
 @media(max-width:1180px) and (min-width:861px){.best .best-l{display:none}.best{padding:0 12px}}
+
+/* ==========================================================================
+   모바일(860px 이하): 짧은 상단 바 → 큰 3D 화면 → 지진 조작판 → 부재 줄 → 도구 → 설명 판
+   한 손가락: 부재를 들고 있으면 끌어 놓기, 아니면 화면 돌리기 · 두 손가락: 확대/돌리기
+   ========================================================================== */
+@media(max-width:860px){
+  header{display:flex;height:56px;padding:0 10px;gap:6px}
+  .brand{flex:none}.brand img{width:34px;height:34px}.brand div{display:none}
+  #tabs{flex:1 1 auto;justify-content:center;gap:4px}#tabs .beads{width:10px}#tabs a span{display:none}#tabs a i{width:38px;height:38px;font-size:17px}
+  .bestw{flex:none}#xbar{gap:4px}#xbar button{min-height:40px;padding:0 10px;font-size:13px}#xbar .dev{display:none}
+  #stage{height:min(62svh,560px);min-height:300px}
+  #hud{top:10px;left:8px;border-radius:10px}#hud>div{padding:4px 8px}#hud span{font-size:11px}#hud strong{font-size:16px}#hud .q strong{font-size:20px}#segs i{width:7px;height:7px}
+  #quickUndo{position:absolute;top:auto;left:auto;right:10px;bottom:10px;min-height:46px;padding:0 14px;font-size:15px}
+  #banner{font-size:clamp(20px,6vw,28px);top:42%;padding:0 16px}
+  #ui{padding:10px;gap:10px}
+  #next{position:static;inset:auto;width:auto;max-height:none;margin:0;order:2;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:10px;padding:10px 12px;overflow-x:auto;scroll-snap-type:x proximity}
+  #next[hidden]{display:none}
+  #next .tl{flex:none;width:auto;font-size:13px;writing-mode:horizontal-tb}
+  #next .nx{flex:0 0 auto;scroll-snap-align:start}
+  #next .nx.now{flex-direction:row;align-items:center;gap:8px}
+  #next .nx-left,#next .nx-done{flex:none;margin:0;white-space:nowrap}
+  #dock{order:1}
+  .dock-in{gap:12px;padding:14px 16px}
+  .acts{flex-wrap:wrap}.acts .btn{min-height:50px}
+  .btn,.seg button{min-height:48px}
+  .tbtn{min-height:48px}
+  #panel{padding:20px 16px}
+  #panel::before{width:44px;height:44px;right:16px;top:16px}
+  .ttl h2{font-size:28px}
+  .real img{max-height:220px;object-fit:contain;background:var(--jeon2)}
+  .reals .real.sm img{max-height:150px}
+  .sheet{padding:18px 16px;max-height:calc(100svh - 24px)}
+  #sheet{padding:12px}
+  .hcard{grid-template-columns:minmax(0,1fr)}.hcard img{width:100%;height:140px}
+}
+/* 가로로 든 휴대폰: 3D 화면이 거의 한 화면 */
+@media(max-width:960px) and (orientation:landscape) and (max-height:520px){
+  header{position:sticky;height:48px}
+  #stage{position:relative;height:calc(100svh - 48px);min-height:0}
+  body{overflow:auto;height:auto}
+  #ui{display:flex;flex-direction:column;padding:10px;gap:10px}
+  #dock,#panel,#tools,#next{position:static;inset:auto;width:auto;max-height:none;margin:0}
+  #quickUndo{position:absolute;top:auto;left:auto;right:10px;bottom:10px}
+  #hint{display:none}
+}
+@media(max-width:860px){#notice{left:12px;right:12px;transform:none;max-width:none;top:64px;font-size:14px;padding:10px 14px}}
