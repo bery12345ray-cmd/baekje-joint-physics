@@ -9,7 +9,8 @@ export const JOINTS = {
   flex:   { k: 150,  c: 12,  breakDeg: 20 },
   rigid:  { k: 1500, c: 2,   breakDeg: 1.6 },
   mortar: { k: 400,  c: 4,   breakDeg: 3 },
-  steel:  { k: 3000, c: 40,  breakDeg: 999 }, // 세계의 탑: 정해진 세기(breakAt)까지는 한 몸으로 버티다가 한꺼번에 풀린다
+  steel:  { k: 3000, c: 40,  breakDeg: 999 },
+  glue:   { k: 1500, c: 25,  breakDeg: 8 }, // 대화로 만든 블록 그림: 서로 단단히 붙지만 큰 지진에는 떨어진다 // 세계의 탑: 정해진 세기(breakAt)까지는 한 몸으로 버티다가 한꺼번에 풀린다
 };
 // Peak ground acceleration (m/s²) for a magnitude-like intensity 1.0–7.0.
 export const QUAKE = { base: 0.2, growth: 2.0, freq: 1.4 }; // 지진 세기 조율값: 바르게 지은 탑은 기본 세기 5를 버티고, 잘못 지은 탑은 무너진다

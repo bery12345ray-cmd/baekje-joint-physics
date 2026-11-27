@@ -234,10 +234,12 @@ function boxGeo([w, h, d]) { // box with UVs scaled to real size so textures don
 // ---------- physics ----------
 let sim;
 const meshes = [];
+// 대화로 만든 탑의 색(v + 16진 색) 재료는 처음 쓸 때 만든다
+function tintMat(b) { const t = b.tint; if (t && /^v[0-9a-f]{6}$/.test(t) && !MATS[t]) MATS[t] = new THREE.MeshStandardMaterial({ color: parseInt(t.slice(1), 16), roughness: 0.85 }); return MATS[t || b.mat] || MATS[b.mat]; }
 function hookSim() {
   sim.onAdd = b => {
     const t = b.body.translation(), vis = b.part && b.tint !== 'broken' ? buildPart(b.part, b.size, MATS, { ...(b.po || {}), corner: [Math.sign(t.x - sim.gx) || 1, Math.sign(t.z - sim.gz) || 1] }) : null;
-    const m = new THREE.Mesh(boxGeo(b.size), vis ? MATS.hidden : MATS[b.tint || b.mat]); m.castShadow = m.receiveShadow = !vis;
+    const m = new THREE.Mesh(boxGeo(b.size), vis ? MATS.hidden : tintMat(b)); m.castShadow = m.receiveShadow = !vis;
     if (vis) m.add(vis); // 보이는 모양은 실제 부재, 충돌과 집기는 상자
     m.userData.block = b; b.mesh = m; scene.add(m); meshes.push(m);
   };

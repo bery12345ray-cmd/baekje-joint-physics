@@ -53,19 +53,80 @@ function stairsTower(n = 5) { // 기본: n층 탑(돌 기단 + 몸돌 + 지붕�
 }
 
 const WORDS = [
-  [/곰|bear|테디/i, () => bear()], [/피라미드/, () => pyramid()], [/눈사람/, () => snowman()], [/로켓|우주선/, () => rocket()],
+  [/피라미드/, () => pyramid()], [/눈사람/, () => snowman()], [/로켓|우주선/, () => rocket()],
   [/하트|사랑/, () => heart()], [/성|캐슬|castle/i, () => castle()],
 ];
 // 예시 탑 이름이 나오면 그 예시를 불러온다
 const NAMES = [[/에펠/, 'eiffel'], [/피사/, 'pisa'], [/빅\s?벤|엘리자베스/, 'bigben'], [/도쿄/, 'tokyo'], [/남산|서울\s?타워|N\s?서울/i, 'namsan'], [/대안탑|시안/, 'dayan'],
   [/정림사/, 'jeong'], [/미륵사/, 'mireuk'], [/무량사/, 'muryang'], [/남매탑|청량사/, 'cheongnyang'], [/팔상전|법주사/, 'palsang']];
 
+// ---------- 아무 모양이나: 낱말을 그림 문자(이모지)로 바꿔 그 모양을 블록으로 쌓는다(없으면 글자 모양 그대로) ----------
+const EMOJI = [[/곰|테디/, '🧸', '곰돌이'], [/고양이|냥/, '🐱', '고양이'], [/강아지|멍멍/, '🐶', '강아지'], [/토끼/, '🐰', '토끼'], [/펭귄/, '🐧', '펭귄'], [/공룡/, '🦖', '공룡'],
+  [/돼지/, '🐷', '돼지'], [/여우/, '🦊', '여우'], [/판다/, '🐼', '판다'], [/호랑이/, '🐯', '호랑이'], [/사자/, '🦁', '사자'], [/코끼리/, '🐘', '코끼리'], [/기린/, '🦒', '기린'],
+  [/닭|병아리/, '🐥', '병아리'], [/물고기|생선/, '🐟', '물고기'], [/고래/, '🐳', '고래'], [/부엉이|올빼미/, '🦉', '부엉이'], [/개구리/, '🐸', '개구리'], [/거북/, '🐢', '거북'],
+  [/별/, '⭐', '별'], [/초승달|달님/, '🌙', '달'], [/태양|해님/, '☀️', '해'], [/꽃/, '🌸', '꽃'], [/나무/, '🌳', '나무'], [/버섯/, '🍄', '버섯'], [/사과/, '🍎', '사과'], [/딸기/, '🍓', '딸기'],
+  [/수박/, '🍉', '수박'], [/케이크|케익/, '🎂', '케이크'], [/아이스크림/, '🍦', '아이스크림'], [/집/, '🏠', '집'], [/자동차/, '🚗', '자동차'], [/돛단배|요트/, '⛵', '배'], [/비행기/, '✈️', '비행기'],
+  [/로봇/, '🤖', '로봇'], [/유령/, '👻', '유령'], [/스마일|웃는/, '😀', '웃는 얼굴'], [/왕관/, '👑', '왕관'], [/종/, '🔔', '종'], [/우산/, '☂️', '우산'], [/기타/, '🎸', '기타'], [/축구/, '⚽', '공'],
+  [/불꽃|불/, '🔥', '불꽃'], [/구름/, '☁️', '구름'], [/무지개/, '🌈', '무지개'], [/눈송이/, '❄️', '눈송이'], [/다이아|보석/, '💎', '보석'], [/열쇠/, '🔑', '열쇠']];
+const PAL = [['흰', 0xf1ede4], ['검', 0x2b2824], ['회', 0x9a968e], ['빨', 0xc8402e], ['주', 0xe0812f], ['노', 0xe9c23c], ['초', 0x5f9a4a], ['파', 0x3f72b8], ['남', 0x2c3f73], ['보', 0x7d55a6], ['분', 0xe39ab4], ['갈', 0x8a5a33], ['살', 0xe8c39a]];
+function nearest(r, g, b) {
+  let best = PAL[0], bd = 1e9;
+  for (const c of PAL) { const cr = c[1] >> 16, cg = (c[1] >> 8) & 255, cb = c[1] & 255, d = (r - cr) ** 2 * 0.3 + (g - cg) ** 2 * 0.59 + (b - cb) ** 2 * 0.11; if (d < bd) { bd = d; best = c; } }
+  return best;
+}
+const STOP = /(모양의|모양|으로|탑을|탑|을|를|만들어\s*줘|만들어|지어\s*줘|쌓아\s*줘|주세요|줘|하나|한\s*개|좀)/g;
+export function voxelBuild(text) {
+  if (typeof document === 'undefined') return null;
+  const hit = EMOJI.find(([re]) => re.test(text));
+  const word = text.replace(STOP, ' ').trim().split(/\s+/).filter(Boolean).join('').slice(0, 3);
+  const glyph = hit ? hit[1] : word; if (!glyph) return null;
+  const N = hit ? 26 : Math.min(40, 14 * [...glyph].length), H = hit ? 26 : 16;
+  const cv = document.createElement('canvas'); cv.width = N; cv.height = H;
+  const c = cv.getContext('2d', { willReadFrequently: true });
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = hit ? `${H - 2}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif` : `900 ${H - 1}px "Gowun Dodum","Malgun Gothic",sans-serif`;
+  c.fillStyle = '#8a5a33'; c.fillText(glyph, N / 2, H / 2 + 1);
+  if (!hit) { c.strokeStyle = '#8a5a33'; c.lineWidth = 1.6; c.strokeText(glyph, N / 2, H / 2 + 1); } // 글자 획을 굵게(가는 획은 서 있기 어렵다)
+  const px = c.getImageData(0, 0, N, H).data, cell = 0.3, depth = 0.9, A = 110;
+  let minY = H, maxY = -1, minX = N, maxX = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < N; x++) if (px[(y * N + x) * 4 + 3] > A) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+  if (maxY < 0) return null;
+  const cx = (minX + maxX + 1) / 2, base = 0.3;
+  const d = [B('granite', (maxX - minX + 3) * cell, base, depth + 0.6, 0, base / 2, 0)], meta = [{ ri: -1 }];
+  for (let y = maxY, ri = 0; y >= minY; y--, ri++) { // 아래 줄부터: 같은 색이 이어진 칸을 한 블록으로
+    let x = minX;
+    while (x <= maxX) {
+      const i = (y * N + x) * 4; if (px[i + 3] <= A) { x++; continue; }
+      const col = nearest(px[i], px[i + 1], px[i + 2]); let e = x + 1;
+      while (e <= maxX) { const j = (y * N + e) * 4; if (px[j + 3] <= A || nearest(px[j], px[j + 1], px[j + 2]) !== col) break; e++; }
+      const w = (e - x) * cell, bx = ((x + e) / 2 - cx) * cell, by = base + ri * cell + cell / 2;
+      const dark = ['검', '남', '회'].includes(col[0]), wood = ['갈', '주', '노', '살'].includes(col[0]);
+      const it = B(ri < 2 || dark ? 'granite' : 'brick', w, cell, depth, bx, by, 0); // 색은 칠로 나타내고, 작은 블록이 부러지지 않게 소나무는 쓰지 않는다
+      it.tint = 'v' + col[1].toString(16).padStart(6, '0'); it.links = [];
+      // 아래 줄에서 가장 많이 겹치는 블록(없으면 같은 줄 왼쪽 이웃)에 이어 붙인다
+      // 아래 줄에서 겹치는 블록마다 겹친 구간 양 끝 두 곳을 이어 붙인다(두 점 이음은 꺾이지 않는다). 없으면 같은 줄 왼쪽 이웃이나 바로 앞 블록에
+      const J = hit ? 'glue' : 'steel', X = c => (c - cx) * cell, yb = by - cell / 2;
+      if (ri === 0) { it.links.push({ to: 0, joint: J, anchor: [X(x + 0.5), yb, -0.3] }, { to: 0, joint: J, anchor: [X(e - 0.5), yb, 0.3] }); }
+      else meta.forEach((m, k) => { if (m.ri !== ri - 1) return; const a0 = Math.max(m.x0, x), a1 = Math.min(m.x1, e); if (a1 <= a0) return;
+        it.links.push({ to: k, joint: J, anchor: [X(a0 + 0.5), yb, -0.3] }); it.links.push({ to: k, joint: J, anchor: [X(a1 - 0.5), yb, 0.3] }); });
+      const left = meta.findIndex(m => m.ri === ri && m.x1 === x);
+      if (left >= 0) { it.links.push({ to: left, joint: J, anchor: [X(x), by, -0.3] }, { to: left, joint: J, anchor: [X(x), by, 0.3] }); }
+      if (!it.links.length) it.links.push({ to: d.length - 1, joint: J, anchor: [bx, yb, 0] });
+      d.push(it); meta.push({ ri, x0: x, x1: e });
+      x = e;
+    }
+  }
+  const name = hit ? hit[2] : `"${glyph}" 글자`;
+  return { design: d, reply: `${name} 모양으로 블록 ${d.length - 1}개를 쌓았어요. 아래 두 줄과 어두운 색은 돌, 나머지는 문양전에 색을 칠했어요. 블록끼리 이어 붙였지만 위가 무거우면 지진에 약해요.` };
+}
+
 export function localBuild(text) {
   for (const [re, ex] of NAMES) if (re.test(text)) return { example: ex };
   for (const [re, fn] of WORDS) if (re.test(text)) return fn();
+  if (EMOJI.some(([re]) => re.test(text))) return voxelBuild(text);
   const m = text.match(/(\d+)\s*층/); const n = m ? Math.max(1, Math.min(12, +m[1])) : 5;
-  if (/탑|층/.test(text)) return stairsTower(n);
-  return null;
+  if (/\d+\s*층|^\s*탑/.test(text)) return stairsTower(n);
+  return voxelBuild(text) || stairsTower(n);
 }
 
 // AI 설계를 게임 설계로 바꾸고, 바닥 아래로 꺼지거나 너무 큰 부재는 걸러 낸다
