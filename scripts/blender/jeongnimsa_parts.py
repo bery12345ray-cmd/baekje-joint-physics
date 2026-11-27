@@ -170,7 +170,67 @@ def bokbal():  # 꼭대기 0.5 × 0.55: 상륜부는 사라지고 닳은 돌 덩
     o = box('worn2', 0.32, 0.3, 0.25, (0.03, -0.02, 0.425), s, bevel=0.08, segs=4)
     o.rotation_euler = (0.05, -0.08, 0.3)
 
-PARTS = {'jidae': jidae, 'gidan': gidan, 'tapsin1': tapsin1, 'tapsin': tapsin, 'batchim': batchim, 'okgae': okgae, 'noban': noban, 'bokbal': bokbal}
+# ---------- 익산 미륵사지 석탑(서탑) 부재 ----------
+def mgidan():  # 단층 기단 5.0 × 0.38: 낮게 깐 판돌 + 얇은 갑석
+    s = mat('stone', STONE); d = mat('stone_dark', DARK)
+    course('base', 5.0, 0.27, 0.0, (0.18, 0.41, 0.63, 0.84), (0.25, 0.52, 0.77), s, gap=0.016, bev=0.02)
+    frustum('gap', 4.9, 4.78, 0.11, 0.27, d, bevel=0.012)
+
+def mgidung():  # 민흘림 돌기둥 0.36 × 1.35: 아래가 굵고 위가 가는 네모 기둥
+    d = mat('stone_dark', DARK)
+    frustum('post', 0.36, 0.31, 1.35, 0, d, bevel=0.012)
+
+def msimju():  # 심주석 0.52 × 1.35: 돌 세 덩이를 포개 올린 기둥
+    s = mat('stone', STONE)
+    for i, (z, hh) in enumerate(((0, 0.47), (0.47, 0.44), (0.91, 0.44))):
+        box('simju', 0.52 - i * 0.01, 0.52 - i * 0.01, hh - 0.012, (0, 0, z + hh / 2), s, bevel=0.015)
+
+def mbyeok():  # 벽석 3.08 × 1.35 × 0.2: 세 칸 가운데 칸에 문, 양옆 칸은 판돌을 쌓은 벽, 칸 사이에 기둥을 새김
+    s = mat('stone', STONE); d = mat('stone_dark', DARK)
+    L, H, T = 3.08, 1.35, 0.2; bay = L / 3; door_w = bay * 0.62; door_h = H * 0.78
+    for side in (-1, 1):  # 양옆 칸: 판돌 세 켜
+        cx = side * bay
+        for k, hh in enumerate((0.48, 0.44, 0.43)):
+            z0 = sum((0.48, 0.44, 0.43)[:k])
+            box('panel', bay - 0.02, T * 0.9, hh - 0.014, (cx, 0, z0 + hh / 2), s, bevel=0.012)
+    for side in (-1, 1):  # 가운데 칸 문설주
+        w = (bay - door_w) / 2
+        box('jamb', w - 0.01, T * 0.9, door_h, (side * (door_w / 2 + w / 2), 0, door_h / 2), s, bevel=0.01)
+    box('lintel', bay - 0.02, T * 0.9, H - door_h - 0.01, (0, 0, door_h + (H - door_h) / 2), s, bevel=0.012)
+    box('dark', door_w, T * 0.5, door_h, (0, 0.02, door_h / 2), mat('void', (0.08, 0.07, 0.06)))
+    for x in (-bay / 2, bay / 2):  # 칸을 나누는 기둥(민흘림)
+        o = frustum('post', 0.2, 0.17, H, 0, d, bevel=0.008); o.location = (x, -0.0, 0); o.scale.y = 1.2
+
+def mchangbang():  # 창방·평방 3.9 × 0.24: 아래는 창방, 위는 조금 더 내민 평방
+    s = mat('stone', STONE); d = mat('stone_dark', DARK)
+    course('changbang', 3.8, 0.11, 0.0, (0.33, 0.66), (0.5,), d, gap=0.012, bev=0.01)
+    course('pyeongbang', 3.9, 0.12, 0.115, (0.25, 0.5, 0.75), (0.5,), s, gap=0.012, bev=0.01)
+
+def mbatchim():  # 3단 층급받침 4.26 × 0.2
+    s = mat('stone', STONE)
+    for (w, z, hh) in ((3.82, 0.0, 0.066), (4.04, 0.066, 0.066), (4.26, 0.132, 0.066)):
+        frustum('step', w - 0.04, w, hh, z, s, bevel=0.006)
+
+def mokgae():  # 미륵사지 지붕돌 5.4 × 0.2: 아주 얇고 넓으며 위가 거의 평평, 귀가 살짝 들림
+    s = mat('stone', STONE); d = mat('stone_dark', DARK)
+    eave_roof('roof', 2.7, 2.0, 0.07, 0.035, 0.0, 0.17, s)
+    frustum('goem', 3.85, 3.8, 0.03, 0.17, d, bevel=0.004)
+
+def mtapsin():  # 2층 이상 몸돌 3.5 × 0.62: 모서리 우주 + 면마다 탱주 둘 + 두 켜
+    s = mat('stone', STONE); d = mat('stone_dark', DARK)
+    h = 0.62; w = 3.4
+    course('body', w, h / 2, 0.0, (0.33, 0.66), (0.33, 0.66), s, gap=0.014, bev=0.012)
+    course('body', w, h / 2, h / 2, (0.5,), (0.5,), s, gap=0.014, bev=0.012)
+    for ix in (-1, 1):
+        for iy in (-1, 1):
+            box('woo', 0.26, 0.26, h, (ix * (1.75 - 0.13), iy * (1.75 - 0.13), h / 2), d, bevel=0.01)
+    for k in (-1, 1):
+        for side in range(4):
+            x, y = [(k * w / 6, 1.72), (k * w / 6, -1.72), (1.72, k * w / 6), (-1.72, k * w / 6)][side]
+            box('tang', 0.18 if side < 2 else 0.06, 0.06 if side < 2 else 0.18, h, (x, y, h / 2), d, bevel=0.006)
+
+PARTS = {'jidae': jidae, 'gidan': gidan, 'tapsin1': tapsin1, 'tapsin': tapsin, 'batchim': batchim, 'okgae': okgae, 'noban': noban, 'bokbal': bokbal,
+         'mgidan': mgidan, 'mgidung': mgidung, 'msimju': msimju, 'mbyeok': mbyeok, 'mchangbang': mchangbang, 'mbatchim': mbatchim, 'mokgae': mokgae, 'mtapsin': mtapsin}
 done = []
 for name, fn in PARTS.items():
     reset(); fn(); export(name); done.append(name)

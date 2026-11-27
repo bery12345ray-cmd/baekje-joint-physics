@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 export const PART_NAMES = {
   jidae: '지대석', gidan: '기단 면석·갑석', tapsin1: '1층 탑신석(우주)', tapsin: '탑신석', batchim: '옥개받침', okgae: '옥개석',
   jangsik: '장식석', noban: '노반', bokbal: '복발·보주',
+  mgidan: '미륵사지 단층 기단', mgidung: '민흘림 돌기둥', msimju: '심주석', mbyeok: '문 낸 벽석', mchangbang: '창방·평방', mbatchim: '3단 층급받침', mokgae: '미륵사지 지붕돌', mtapsin: '미륵사지 몸돌',
   wbase: '석조 기단', gidung: '기둥', simju: '심주', gongpo: '창방·공포', cheoma: '처마 서까래', giwa: '기와지붕', sangryun: '상륜',
 };
 

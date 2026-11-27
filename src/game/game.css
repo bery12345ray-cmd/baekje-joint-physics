@@ -436,34 +436,61 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
 @media(max-width:400px){#dropBar span{display:block}}
 #dropBar{left:0;right:0;margin:0 auto;transform:none}
 
-
-
 /* ==========================================================================
-   첫 화면 리플렛(정림사지 안내): 한 장씩 왼쪽으로 넘기는 종이 리플렛
+   첫 화면 리플렛(정림사지 안내): 실제 리플렛 판형(남색 표지 · 흰 속지 · 초록 박물관 면 · 남색 관람 안내)
    ========================================================================== */
-#leaflet{position:fixed;inset:0;z-index:50;display:grid;place-items:center;grid-template-rows:1fr auto auto;gap:12px;padding:20px 16px 18px;
-  background:radial-gradient(120% 90% at 50% 20%,#2a2722 0%,var(--togi) 70%);animation:lf-in .5s var(--ease)}
+#leaflet{--lf-navy:#2c4677;--lf-navy2:#1f3561;--lf-blue:#3d6fb6;--lf-sky:#e9f0fa;--lf-green:#2f5a45;--lf-paper:#fbfaf6;
+  position:fixed;inset:0;z-index:50;display:grid;place-items:center;grid-template-rows:1fr auto auto;gap:12px;padding:20px 16px 18px;
+  background:radial-gradient(120% 90% at 50% 20%,#2a2722 0%,var(--togi) 70%);animation:lf-in .5s var(--ease);font-family:var(--B)}
 #leaflet.lf-out{opacity:0;transform:scale(1.02);transition:opacity .45s var(--ease),transform .45s var(--ease)}
-.lf-book{position:relative;width:min(920px,100%);height:min(580px,calc(100dvh - 140px));perspective:2200px;align-self:center}
-.lf-page{position:absolute;inset:0;display:grid;grid-template-columns:1.05fr 1fr;background:var(--jeon);color:var(--ink);border-radius:6px var(--r-lg) var(--r-lg) 6px;
-  box-shadow:var(--sh-2),inset 10px 0 18px -12px rgba(20,19,17,.35);overflow:hidden;transform-origin:left center;transform-style:preserve-3d;backface-visibility:hidden;
+.lf-book{position:relative;width:min(1040px,100%);height:min(640px,calc(100dvh - 140px));perspective:2400px;align-self:center}
+.lf-page{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--lf-paper);color:#23262b;border-radius:4px 10px 10px 4px;
+  box-shadow:var(--sh-2),inset 12px 0 20px -14px rgba(20,19,17,.4);overflow:hidden;isolation:isolate;transform-origin:left center;backface-visibility:hidden;
   transition:transform .9s var(--ease),opacity .9s var(--ease),filter .9s var(--ease)}
 .lf-page.turned{transform:rotateY(-160deg);opacity:0;filter:brightness(.7);pointer-events:none}
-.lf-art{background:#e8e0cf;border-right:1px solid var(--line);display:grid;place-items:center;min-height:0}
-.lf-art svg{width:100%;height:100%;display:block}
-.lf-text{padding:34px 36px 26px;overflow:auto;display:flex;flex-direction:column;gap:10px;word-break:keep-all;overflow-wrap:break-word}
-.lf-text h2{font-family:var(--D);font-size:clamp(26px,3.4vw,38px);line-height:1.15;margin:0;color:var(--ink);font-weight:400}
-.lf-text p{margin:0;font-size:15.5px;line-height:1.75;color:#2f2b26;max-width:36em}
-.lf-kicker{align-self:flex-start;font-size:12.5px;letter-spacing:.06em;color:#fbf7ee;background:var(--pat);padding:3px 10px;border-radius:999px}
-.lf-cover .lf-kicker{background:var(--gold);color:var(--togi)}
-.lf-cover h2{font-size:clamp(40px,6vw,62px);letter-spacing:.06em}
-.lf-sub{font-family:var(--D);color:var(--mute)!important;letter-spacing:.14em;font-size:13.5px!important}
-.lf-info{margin:4px 0 0;display:grid;gap:6px;border-top:1px solid var(--line);padding-top:10px}
-.lf-info div{display:grid;grid-template-columns:5.5em 1fr;gap:8px;font-size:13.5px;line-height:1.55}
-.lf-info dt{color:var(--pat);font-weight:700}.lf-info dd{margin:0}
-.lf-src{margin-top:auto!important;padding-top:8px;font-size:12px!important;color:var(--mute)!important}
-.lf-go{align-self:flex-start;margin-top:6px;font:inherit;font-size:16px;padding:12px 22px;border-radius:var(--r-sm);border:1px solid var(--gold);background:var(--togi);color:var(--goldl);cursor:pointer;box-shadow:var(--sh-1)}
-.lf-go:hover{background:#2a2722}
+.lf-page::before{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);width:min(70%,560px);height:14px;border-radius:0 0 14px 14px;background:var(--lf-blue);opacity:.9}
+.lf-head{display:flex;align-items:baseline;gap:10px;padding:30px 34px 6px;border-bottom:1px solid rgba(44,70,119,.15);margin:0 0 4px}
+.lf-head h2{margin:0;font-size:clamp(24px,2.6vw,32px);font-weight:800;color:var(--lf-navy);letter-spacing:-.01em}
+.lf-head span{font-size:12.5px;letter-spacing:.12em;color:#6a7690;font-family:var(--D)}
+.lf-cols{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:14px 34px 4px;overflow:auto}
+.lf-sec{display:flex;flex-direction:column;gap:8px;min-width:0;word-break:keep-all;overflow-wrap:break-word}
+.lf-sec h3{display:flex;align-items:center;gap:8px;margin:0 0 2px;font-size:16.5px;font-weight:800;color:var(--lf-navy)}
+.lf-sec h3 i{width:18px;height:9px;border-radius:9px;background:var(--lf-blue);box-shadow:-5px 0 0 0 var(--lf-navy) inset;flex:none}
+.lf-sec p{margin:0;font-size:14.5px;line-height:1.72;color:#33363c}
+.lf-sec figure{margin:6px 0 0;border-radius:4px;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,.06),0 6px 16px rgba(20,30,60,.12);aspect-ratio:3/2;background:#dfe5ec}
+.lf-sec figure img{width:100%;height:100%;object-fit:cover;display:block}
+.lf-src{margin:0;padding:8px 34px 14px;font-size:11.5px;color:#7a7f88}
+/* 표지 */
+.lf-cover{background:var(--lf-navy2);color:#fff}
+.lf-cover::before{display:none}
+.lf-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6;filter:grayscale(.6)}
+.lf-cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(31,53,97,.55) 0%,rgba(44,70,119,.78) 45%,rgba(31,53,97,.95) 100%)}
+.lf-cv{position:relative;z-index:1;margin:auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 20px}
+.lf-tag{margin:0;font-size:15px;letter-spacing:.08em;color:#e6ecf7}
+.lf-cv h2{margin:0;font-size:clamp(52px,8vw,96px);font-weight:800;letter-spacing:.06em;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.35)}
+.lf-en{margin:0;font-size:clamp(14px,1.6vw,19px);letter-spacing:.5em;padding-left:.5em;color:#fff;font-family:var(--D)}
+.lf-han{margin:0;font-size:17px;letter-spacing:.3em;color:#d5def0;font-family:var(--D)}
+.lf-cvnote{position:relative;z-index:1;margin:0 auto 4px;max-width:30em;text-align:center;font-size:14px;line-height:1.7;color:#dfe6f3;padding:0 20px}
+.lf-cover .lf-src{position:relative;z-index:1;text-align:center;color:#aebbd6}
+/* 박물관 면(초록) */
+.lf-green{background:var(--lf-green);color:#eef4ef}
+.lf-green::before{background:#7fb39b}
+.lf-green .lf-head{border-color:rgba(255,255,255,.18)}.lf-green .lf-head h2{color:#fff}.lf-green .lf-head span{color:#b7cfc2}
+.lf-green .lf-sec h3{color:#fff}.lf-green .lf-sec h3 i{background:#cfe4d8;box-shadow:-5px 0 0 0 #fff inset}
+.lf-green .lf-sec p{color:#e1ece5}.lf-green .lf-src{color:#a9c4b6}
+/* 관람 안내(남색) */
+.lf-navy{background:var(--lf-navy);color:#fff}
+.lf-navy::before{background:#8fb1e3}
+.lf-navy .lf-cols{padding-top:34px}
+.lf-bar{margin:0 0 8px;font-size:24px;font-weight:800;color:#fff;padding-top:10px;border-top:3px solid #fff;align-self:flex-start}
+.lf-info{margin:0;display:grid;gap:0}
+.lf-info div{display:grid;grid-template-columns:5.6em 1fr;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.22);font-size:14.5px;line-height:1.65}
+.lf-info dt{font-weight:800}.lf-info dd{margin:0}.lf-info small{color:#c5d3ec}
+.lf-map{width:100%;max-width:380px;color:#fff;margin-top:6px}
+.lf-navy .lf-src{color:#aebbd6}
+.lf-go{align-self:flex-start;margin-top:10px;font:inherit;font-size:16px;font-weight:700;padding:12px 24px;border-radius:999px;border:0;background:#fff;color:var(--lf-navy);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.lf-go:hover{background:var(--lf-sky)}
+/* 넘기기 */
 .lf-nav{display:flex;align-items:center;gap:14px}
 .lf-nav button{font:inherit;min-width:44px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid rgba(200,160,84,.7);background:transparent;color:var(--goldl);cursor:pointer;font-size:16px}
 .lf-nav button:disabled{opacity:.3;cursor:default}
@@ -474,14 +501,14 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
 .lf-skip:hover{border-color:var(--gold);color:var(--goldl)}
 .lf-hint{margin:0;font-size:12.5px;color:rgba(234,228,215,.55)}
 @keyframes lf-in{from{opacity:0}to{opacity:1}}
-@media (max-width:720px){
-  #leaflet{padding:58px 12px 12px;gap:10px}
+@media (max-width:760px){
+  #leaflet{padding:58px 10px 10px;gap:10px}
   .lf-book{height:calc(100dvh - 150px)}
-  .lf-page{grid-template-columns:1fr;grid-template-rows:minmax(150px,34%) 1fr}
-  .lf-art{border-right:0;border-bottom:1px solid var(--line)}
-  .lf-art svg{height:100%;width:auto;max-width:100%}
-  .lf-text{padding:18px 18px 16px;gap:8px}
-  .lf-text p{font-size:14.5px;line-height:1.7}
-  .lf-skip{top:10px;right:12px}
+  .lf-head{padding:24px 18px 6px;flex-wrap:wrap}
+  .lf-cols{grid-template-columns:1fr;gap:22px;padding:12px 18px 6px}
+  .lf-navy .lf-cols{padding-top:24px}
+  .lf-src{padding:6px 18px 12px}
+  .lf-sec p{font-size:14px}
+  .lf-skip{top:10px;right:10px}
 }
 @media (prefers-reduced-motion:reduce){.lf-page{transition:opacity .2s}.lf-page.turned{transform:none}#leaflet{animation:none}}

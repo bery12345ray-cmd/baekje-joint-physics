@@ -265,6 +265,48 @@ export function woodFinial(sim, st) {
   const pole = sim.addBlock({ mat: 'pine', size: [0.16, 1.1, 0.16], pos: [0, st.y + 0.551, 0], tint: 'gold', part: 'sangryun' });
   if (st.kind !== 'none') sim.addJoint(pole, st.below, 'flex', [sim.gx, st.y, sim.gz]);
 }
+// 익산 미륵사지 석탑(서탑, 639년): 낮은 단층 기단, 1층은 네 귀 돌기둥 + 한가운데 심주석 + 면마다 가운데 문을 낸 벽석,
+// 기둥 머리를 창방·평방으로 엮고 3단 층급받침 위에 얇은 지붕돌. 2층부터는 낮은 몸돌이 아주 천천히 줄어든다(오늘 6층까지 남음).
+// 첫째 마당은 step(0 기단 → 1 기둥·심주석 → 2 벽석·창방평방 → 3 받침·지붕돌 → 4 2~6층)으로 쌓는다. kind는 1층 이음 방식.
+export function mireukStory1(sim, st, kind, h = 1.35) {
+  const w = st.w, d = w / 2 - 0.18; st.posts = []; st.kind = kind; st.h = h;
+  if (typeof sim.step === 'number') sim.step = 1;
+  for (const [x, z] of [[-d, -d], [d, -d], [-d, d], [d, d], [0, 0]]) {
+    const center = !x && !z;
+    const p = sim.addBlock({ mat: 'granite', size: center ? [0.52, h, 0.52] : [0.36, h, 0.36], part: center ? 'msimju' : 'mgidung', pos: [x, st.y + h / 2 + 0.001, z] });
+    if (kind !== 'none') sim.addJoint(p, st.below, kind, [x + sim.gx, st.y, z + sim.gz]);
+    st.posts.push(p);
+  }
+  if (typeof sim.step === 'number') sim.step = 2;
+  const L = w - 0.72, t = 0.2;
+  for (const [x, z, rot] of [[0, -d, 0], [0, d, 0], [-d, 0, 1], [d, 0, 1]]) // 면마다 가운데 문을 낸 벽석(마른 쌓기)
+    sim.addBlock({ mat: 'granite', size: rot ? [t, h, L] : [L, h, t], part: 'mbyeok', pos: [x, st.y + h / 2 + 0.001, z] });
+  st.y += h;
+  const beam = sim.addBlock({ mat: 'granite', size: [w + 0.1, 0.24, w + 0.1], part: 'mchangbang', pos: [0, st.y + 0.121, 0] });
+  if (kind !== 'none') for (const p of st.posts) { const tt = p.body.translation(); sim.addJoint(p, beam, kind, [tt.x, st.y, tt.z]); }
+  st.y += 0.24; st.below = beam;
+}
+export function mireukRoof(sim, st, roof = 1.42) {
+  const w = st.w;
+  sim.addBlock({ mat: 'granite', size: [w * 1.12, 0.2, w * 1.12], part: 'mbatchim', pos: [0, st.y + 0.101, 0] }); st.y += 0.2;
+  const r = sim.addBlock({ mat: 'granite', size: [w * roof, 0.2, w * roof], part: 'mokgae', pos: [0, st.y + 0.101, 0] }); st.y += 0.2;
+  st.below = r;
+}
+export function mireukUpper(sim, st, h) {
+  st.w *= 0.93;
+  sim.addBlock({ mat: 'granite', size: [st.w, h, st.w], part: 'mtapsin', pos: [0, st.y + h / 2 + 0.001, 0] }); st.y += h;
+  mireukRoof(sim, st);
+}
+export function buildMireuksa(sim, { kind = 'flex', stories = 6, k = 1 } = {}) {
+  const st = { y: 0, w: 3.8 * k };
+  st.below = sim.addBlock({ mat: 'granite', size: [5.0 * k, 0.38, 5.0 * k], part: 'mgidan', pos: [0, 0.191, 0] }); st.y = 0.38;
+  mireukStory1(sim, st, kind);
+  if (typeof sim.step === 'number') sim.step = 3;
+  mireukRoof(sim, st);
+  if (typeof sim.step === 'number') sim.step = 4;
+  for (let i = 1; i < stories; i++) mireukUpper(sim, st, 0.46 * Math.pow(0.96, i - 1));
+}
+
 // 능사지 목탑(가상 복원): 석조 기단 위 5층 목조.
 export function buildNeungsa(sim, { kind = 'flex' } = {}) {
   const st = woodBase(sim);

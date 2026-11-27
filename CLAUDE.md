@@ -26,7 +26,7 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 
 ## 3. 스테이지 구조 (3단계)
 
-1. **Stage 1 [ORIGIN]** — 백제 목탑 결구 원리
+1. **Stage 1 [ORIGIN]** — 목탑을 닮은 석탑: 익산 미륵사지 석탑(서탑) 쌓기, 이음 방식(턱 맞춤·은장 / 꽉 고정 / 그냥 얹기) 비교
 2. **Stage 2 [MASTERPIECE]** — 부여 정림사지 오층석탑 지진 시뮬레이션
 3. **Stage 3 [SANDBOX]** — 화강암 · 소나무 목재 · 백제 문양전 3종 자재 자유 조합 창작 모드
 
@@ -47,7 +47,7 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 
 - 비·불·바람 재해 시험과 인물·장면 그림은 없앴다(2026-11-27 예진 요청). 시험은 지진(정한 세기·한계 도전)뿐.
 - `whyHTML()`: 왜 목탑에서 석탑으로 바뀌었는지(직접 기록 없음, 학계 견해 · 미륵사지 가운데 목탑 터와 서탑 · 미륵사지·정림사지 선후 논쟁 표시). 첫째·둘째 마당 판의 버튼으로 연다.
-- 둘째 마당은 비례 조절 없이 정림사지 비례(검이불루)와 화려하게 지은 탑(ORNATE) 두 가지만.
+- 둘째 마당은 양식 고르기 없이 실제 정림사지 오층석탑 하나만 쌓는다(사진에서 잰 비례 `HIST`). ORNATE는 쓰지 않는다.
 
 ## 백제 마을 · 정림사 가람 · 인물
 
@@ -89,3 +89,11 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 - `parts.js`의 `loadPartModels()`가 시작할 때 불러오고, `buildPart`는 모델이 있으면 모델을 부재 상자 크기에 맞춰 겉모습으로만 쓴다. 물리·충돌은 그대로 상자. 모델이 없으면 기존 코드 모양.
 - 재료 이름 짝: stone→화강암, stone_dark→어두운 화강암(우주·탱주), wood, red, plaster, green, gold, tile.
 - 미리보기: `preview_jeongnimsa.py -- public/models out.png` (Workbench 렌더). `*-preview.png`·`*-preview.jpg`는 커밋하지 않는다.
+
+## 미륵사지 석탑 · 셋째 마당 부재 · 리플렛 (2026-11-27)
+
+- 첫째 마당은 능사 목탑 대신 익산 미륵사지 석탑(`sim.js` `buildMireuksa`): 단층 기단 → 네 귀 돌기둥 + 심주석 → 면마다 문 낸 벽석 + 창방·평방 → 3단 층급받침 + 얇은 지붕돌 → 2~6층. 그냥 얹기는 시험 때 마찰을 낮춘다(턱·은장 없음).
+- 블렌더 부재: `scripts/blender/jeongnimsa_parts.py`가 정림사지 8종과 미륵사지 8종(m*)을 함께 내보낸다.
+- 셋째 마당 도구막대에 두 석탑 부재 16종(`REAL` → `SHAPES.p_*`, 화강암 고정). 예시에서 능사 목탑은 뺐다.
+- 첫 화면 리플렛(`leaflet.js`): 실제 정림사지박물관 리플렛 판형(남색 표지, 흰 속지, 초록 박물관 면, 남색 관람 안내). 그림은 `scripts/blender/garam_scene.py`로 렌더한 `public/leaflet/*.jpg`(실행 시 출력 폴더는 절대 경로로 줄 것). `?leaflet=0`이면 건너뜀.
+- 둘째 마당 "정림사지 둘러보기"에 미래 복원(정림사지박물관 복원 계획 참고) 전환이 있다.
