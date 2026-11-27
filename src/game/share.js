@@ -12,6 +12,7 @@ async function fontReady(font, text) { try { if (document.fonts) { await documen
 export const W = 1080, H = 1920;
 export const GAME_URL = 'https://bery12345ray-cmd.github.io/baekje-joint-physics/';
 const FONT = '"Pretendard Variable", Pretendard, system-ui, sans-serif';
+const LOGO = 'brand/logo-1400.webp'; // 석공1400 엠블럼(머리띠·첫 화면과 같은 그림)
 const NAVY = '#0f1c23', SEC = '#396b86', ICE = '#cbe1ee', FILM = '#ff8a3d', YEL = '#ffd34d';
 const imgCache = {};
 const load = src => imgCache[src] ||= new Promise((ok, no) => { const i = new Image(); i.decoding = 'async'; i.onload = () => ok(i); i.onerror = no; i.src = src; });
@@ -90,6 +91,7 @@ export async function makeCard(data) {
   const all = `석공 : 1400 AI + HERITAGE SEOKGONG 4-CUT BUILD REPORT ${yrs}을 버텼어요 ${kick} ${data.levelName || ''} ${POSES.map(p => p.tag).join('')} ${say2}${say3} 재해 세기 1,400년까지 나도 쌓아 보기 ${ds} 0123456789.%' ${GAME_URL}`;
   await Promise.all([900, 800, 700, 600].map(w => fontReady(`${w} 40px ${FONT}`, all)));
   const imgs = await Promise.all(POSES.map(p => load(NPC[p.pose]).catch(() => null)));
+  const logo = await load(LOGO).catch(() => null);
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
   g.textBaseline = 'alphabetic';
@@ -101,8 +103,9 @@ export async function makeCard(data) {
   }
   grain(g);
   // 머리: 상표 + 날짜 알약
-  g.fillStyle = NAVY; g.font = `800 42px ${FONT}`; g.fillText('석공 : 1400', 64, 118);
-  const bw = g.measureText('석공 : 1400').width;
+  let bw;
+  if (logo) { const lh = 118, lw = lh * logo.width / logo.height; g.save(); g.shadowColor = 'rgba(8,20,28,.22)'; g.shadowBlur = 16; g.shadowOffsetY = 6; g.drawImage(logo, 56, 46, lw, lh); g.restore(); bw = lw - 8; }
+  else { g.fillStyle = NAVY; g.font = `800 42px ${FONT}`; g.fillText('석공 : 1400', 64, 118); bw = g.measureText('석공 : 1400').width; }
   g.font = `700 15px ${FONT}`; g.letterSpacing = '6px'; g.fillStyle = SEC; g.fillText('AI + HERITAGE', 64 + bw + 22, 112); g.letterSpacing = '0px';
   g.font = `700 22px ${FONT}`; const dw = g.measureText(ds).width + 40;
   g.fillStyle = NAVY; rr(g, W - 64 - dw, 80, dw, 48, 24); g.fill();

@@ -37,10 +37,11 @@ body.perf .glass,body.perf #panel,body.perf #dock,body.perf .hd-seg,body.perf .d
 @media(min-width:861px){
   #hdr{position:fixed;left:0;right:0;top:0;height:auto;padding:16px var(--gutter) 0;background:none;border:0;pointer-events:none;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:start}
   #hdr>*{pointer-events:auto}
-  .hd-brand{justify-self:start;height:47px;padding:0 19px 0 11px;border-radius:999px;background:var(--nv);box-shadow:var(--solid-sh);gap:9.4px;color:#fff}
+  .hd-brand{justify-self:start;height:auto;margin-top:-7px;padding:0;gap:9.4px;color:#fff}
   .hd-right{justify-self:end;height:50px;padding:0 7.8px 0 17px;border-radius:999px;background:var(--nv);box-shadow:var(--solid-sh);gap:3.1px}
 }
-.hd-logo{width:25px;height:25px;color:#fff;stroke:#fff;stroke-width:1.4}
+/* 로고(석공1400 엠블럼, 2026-11-28 예진): 그림 그대로, 판 없이. 밝은 하늘 위에서도 보이게 그림자만 */
+.hd-logo{display:block;width:auto;height:62px;flex:none;filter:drop-shadow(0 3px 8px rgba(4,10,14,.45))}
 .hd-name{align-items:baseline;gap:12px}
 .hd-name b{font-size:18.5px;font-weight:800;letter-spacing:-.01em;color:#fff}
 .hd-name b i{font-style:normal;font-weight:700;margin:0 1px}
@@ -70,6 +71,7 @@ body.perf .glass,body.perf #panel,body.perf #dock,body.perf .hd-seg,body.perf .d
   body.modal #hdr{padding:0 22px;height:50px;align-items:center;background:linear-gradient(90deg,#0a1015 0%,#0f1b22 45%,#1a3443 100%);border-bottom:1px solid rgba(203,225,238,.1);z-index:14}
   body.modal .hd-brand,body.modal .hd-right{background:none;box-shadow:none;height:auto;padding:0}
   body.modal .hd-name small{display:inline}
+  body.modal .hd-brand{margin-top:0}body.modal .hd-logo{height:42px;filter:none}
   body.modal .hd-seg{background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;padding:0;gap:6.2px}
   body.modal .hd-seg button{transition:none;height:34px;padding:0 16px;font-size:15px;background:rgba(28,55,71,.6);color:#fff}
   body.modal .hd-seg button[aria-current=step]{background:#fff;color:#0f1c23;box-shadow:none}
@@ -91,13 +93,14 @@ body.perf .glass,body.perf #panel,body.perf #dock,body.perf .hd-seg,body.perf .d
 #segs i.on{background:#fff}
 
 /* 시험 진행(목업 03): 지진 세기 아래, 시험 중에만 */
-#prog{position:fixed;left:var(--gutter);top:205px;z-index:4;width:195px;padding:14px 17px 16px;border-radius:14px;background:var(--nv);box-shadow:var(--solid-sh);display:flex;flex-direction:column;gap:4.7px;pointer-events:none}
+/* 시험 진행: 재해 장면을 가리지 않게 작게(2026-11-28 예진). 이름과 시간은 한 줄, 아래에 막대와 두 수치 */
+#prog{position:fixed;left:var(--gutter);top:194px;z-index:4;width:164px;padding:9px 12px 10px;border-radius:12px;background:rgba(15,28,35,.86);box-shadow:var(--solid-sh);display:grid;grid-template-columns:auto auto;justify-content:space-between;align-items:baseline;column-gap:8px;row-gap:2px;pointer-events:none}
 #prog[hidden]{display:none}
-#prog .pg-l{font-size:13px;color:var(--tx2);font-weight:600}
-#prog .pg-t{font-size:18px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums}
-#prog .pg-bar{height:6.2px;border-radius:999px;background:rgba(203,225,238,.18);overflow:hidden;margin:3.1px 0 4.7px}
+#prog .pg-l{font-size:11.5px;color:var(--tx2);font-weight:600}
+#prog .pg-t{font-size:14px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap}
+#prog .pg-bar{grid-column:1/-1;height:4px;border-radius:999px;background:rgba(203,225,238,.18);overflow:hidden;margin:4px 0 3px}
 #prog .pg-bar i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#e6f1f7,#fff)}
-#prog .pg-m{font-size:12.5px;color:var(--tx2);font-variant-numeric:tabular-nums}
+#prog .pg-m{grid-column:1/-1;font-size:11px;line-height:1.45;color:var(--tx2);font-variant-numeric:tabular-nums;white-space:nowrap}
 body.testing #next{display:none}
 
 /* 되돌리기 · 처음부터: 남색 단색 알약 */
@@ -450,15 +453,16 @@ body.modal #ui,body.modal #stage>*:not(canvas):not(#sky){filter:none}
 .ti-npc{position:relative;z-index:1;margin-right:-14px;flex:none}
 .ti-npc .npc{display:block;height:min(62vh,620px);width:auto;filter:drop-shadow(0 18px 30px rgba(4,10,14,.45))}
 .ti-bub{margin-top:min(15vh,150px);padding:44px 44px 38px;border-radius:36px;background:#fff;color:#111a20;text-align:left;box-shadow:0 20px 60px rgba(4,10,14,.45);max-width:620px}
-.title-in .ti-kick{margin:0 0 6px;font:700 14px var(--B);letter-spacing:.42em;color:#3d6f8e}
+.title-in .ti-kick{margin:0 0 14px;font:700 14px var(--B);letter-spacing:.42em;color:#3d6f8e}
 .title-in .ti-bub h1{margin:0 0 16px;font:800 clamp(44px,5vw,72px)/1.05 var(--B);letter-spacing:-.02em;color:#0f1c23}
 .title-in .ti-bub h1 i{font-style:normal;font-weight:700}
+.title-in .ti-bub h1.ti-logo{margin:0 0 6px -6px;line-height:0}.ti-logo img{display:block;width:min(400px,100%);height:auto}
 .title-in .ti-say{margin:0 0 28px;font:500 20px/1.7 var(--B);color:#2c363d}
 .title-in .ti-bub .btn{min-height:60px;min-width:0;margin:0;padding:0 30px;width:auto;flex:none;border:0;border-radius:999px;background:var(--nv2);color:#fff;font:700 18px var(--B);box-shadow:0 8px 20px rgba(28,55,71,.35)}
 @media(max-aspect-ratio:1/1){
   .title-in{flex-direction:column;align-items:center}
   .ti-npc{margin:0 0 -36px}.ti-npc .npc{height:min(40vh,560px)}
-  .ti-bub{margin:0;padding:36px 30px 30px}
+  .ti-bub{margin:0;padding:56px 30px 30px}
   .title-in .ti-say{font-size:clamp(16px,2.6vw,24px)}
 }
 .tbtn{border-color:rgba(203,225,238,.2);color:var(--tx)}
@@ -490,7 +494,10 @@ body.modal #ui,body.modal #stage>*:not(canvas):not(#sky){filter:none}
   #hdr-r{background:rgba(15,28,35,.97);border:1px solid rgba(203,225,238,.14)}
   .hd-ico{margin-left:0;border:0;background:none;box-shadow:none;width:auto}
   #hud{border-radius:14px}#hud>div{padding:8px 12px}#hud .q strong{font-size:24px}#segs{margin-top:4px}#segs i{width:7px;height:7px}
-  #prog{position:absolute;top:auto;bottom:62px;left:10px;width:200px;padding:12px 14px}
+  #prog{position:absolute;top:10px;right:10px;left:auto;bottom:auto;width:142px;padding:7px 10px 8px;border-radius:12px}
+  #prog .pg-l{font-size:10.5px}#prog .pg-t{font-size:13px}#prog .pg-m{font-size:10.5px}
+  body.testing #hint,body.touch.testing #hint{display:none}
+  .hd-logo{height:44px;filter:none}.hd-brand{margin-top:0}
   #panel{border-radius:24px;-webkit-backdrop-filter:none;backdrop-filter:none;background:linear-gradient(160deg,#1a2f3b,#122129)}
   #next{width:auto;border-radius:18px}
   .nx.now{margin:0}.nx.now .nx-pv{width:64px;height:64px;border-radius:12px}.nx.now .nx-pv img,.nx.now .nx-pv svg{width:56px;height:56px}.nx.now b{margin:0 0 0 10px;font-size:18px}
