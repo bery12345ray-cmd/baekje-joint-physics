@@ -605,12 +605,12 @@ h1,h2,h3,.ttl h2,.spirit b,#critique .title,.nx b,.ex b,.real figcaption b,.tl,.
 .g-hole{position:fixed;border-radius:var(--r-lg);box-shadow:0 0 0 9999px rgba(20,19,17,.62),0 0 0 3px var(--gold) inset;transition:left .35s var(--ease),top .35s var(--ease),width .35s var(--ease),height .35s var(--ease),opacity .2s;pointer-events:none}
 .g-card{position:fixed;display:grid;grid-template-columns:96px minmax(0,1fr);align-items:end;gap:6px;transition:left .35s var(--ease),top .35s var(--ease)}
 .g-card.pop .g-bubble{animation:gPop .35s var(--ease)}
-.g-card.pop .g-who{animation:gHop .5s var(--ease)}
+
 @keyframes gPop{from{transform:scale(.94);opacity:0}}
 @keyframes gHop{40%{transform:translateY(-8px) rotate(-3deg)}}
-.g-who{width:96px;height:auto;filter:drop-shadow(0 6px 10px rgba(20,19,17,.35))}
-.g-who .g-flower{transform-origin:60px 34px;animation:gSway 3s ease-in-out infinite}
-@keyframes gSway{50%{transform:translate(60px,26px) rotate(8deg)}}
+
+
+
 .g-bubble{position:relative;background:var(--jeon);border:2px solid var(--gold);border-radius:var(--r-lg);padding:14px 16px 12px;box-shadow:var(--sh-2);display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
 .g-bubble::before{content:"";position:absolute;left:-12px;bottom:22px;border:10px solid transparent;border-right-color:var(--gold);border-left:0}
 .g-bubble::after{content:"";position:absolute;left:-8px;bottom:24px;border:8px solid transparent;border-right-color:var(--jeon);border-left:0}
@@ -618,8 +618,8 @@ h1,h2,h3,.ttl h2,.spirit b,#critique .title,.nx b,.ex b,.real figcaption b,.tl,.
 .g-text{margin:0;font:16.5px/1.65 var(--D);color:var(--ink);word-break:keep-all}
 .g-btns{display:flex;justify-content:flex-end;gap:8px}
 .g-btns .btn{width:auto;flex:none;min-height:42px;padding:0 18px}
-@media(max-width:520px){.g-card{grid-template-columns:64px minmax(0,1fr)}.g-who{width:64px}.g-text{font-size:15px}}
-@media(prefers-reduced-motion:reduce){.g-hole,.g-card{transition:none}.g-card.pop .g-bubble,.g-card.pop .g-who,.g-who .g-flower,.bd-on i{animation:none}}
+@media(max-width:520px){.g-card{grid-template-columns:64px minmax(0,1fr)}.g-text{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.g-hole,.g-card{transition:none}.g-card.pop .g-bubble,.bd-on i{animation:none}}
 @media(max-width:860px){
   #resetBtn{position:absolute;left:10px;top:auto;bottom:10px;right:auto}#resetBtn kbd{display:none}
   #quickUndo[hidden]+#resetBtn{top:auto}
@@ -747,7 +747,7 @@ body{font-family:var(--B);font-weight:400;letter-spacing:-.01em;font-feature-set
 #lvup{position:fixed;inset:0;z-index:13;display:grid;place-items:center;padding:16px;background:rgba(20,19,17,.66);animation:lvIn .25s var(--ease)}
 @keyframes lvIn{from{opacity:0}}
 .lv-card{display:grid;grid-template-columns:120px minmax(0,1fr);gap:18px;align-items:end;width:min(560px,100%);padding:26px 26px 22px;border-radius:20px;background:var(--jeon);border:1px solid var(--hair)}
-.lv-who .g-who{width:120px;animation:gHop .6s var(--ease)}
+
 .lv-body{display:flex;flex-direction:column;gap:8px;min-width:0}
 .lv-kicker{margin:0;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:#7a5d1c}
 .lv-badge{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:4px 12px 4px 8px;border-radius:var(--pill);background:var(--togi);color:var(--goldl);font-weight:700;font-size:13px}
@@ -773,8 +773,8 @@ body{font-family:var(--B);font-weight:400;letter-spacing:-.01em;font-feature-set
 .lv-ok{font-style:normal;font-weight:800;color:var(--pat)}
 .lv-lock{width:12px;height:14px;border:1.6px solid var(--gran2);border-radius:3px;position:relative;top:2px}.lv-lock::before{content:"";position:absolute;left:1px;top:-7px;width:6px;height:6px;border:1.6px solid var(--gran2);border-bottom:0;border-radius:4px 4px 0 0}
 .lv-debug{flex-wrap:wrap;align-items:center}.lv-debug .btn{width:auto;flex:none;min-height:36px;padding:0 12px}
-@media(max-width:520px){.lv-card{grid-template-columns:minmax(0,1fr);padding:20px 18px}.lv-who{display:flex;justify-content:center}.lv-who .g-who{width:84px}.lv-years{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(prefers-reduced-motion:reduce){#lvup,.lv-who .g-who{animation:none}#hdr *{transition:none!important}}
+@media(max-width:520px){.lv-card{grid-template-columns:minmax(0,1fr);padding:20px 18px}.lv-who{display:flex;justify-content:center}.lv-years{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){#lvup{animation:none}#hdr *{transition:none!important}}
 /* 조립 정보: 부재를 다 놓기 전까지 재해 시험 자리에(놓은 부재·정위치 맞춤·들고 있는 부재·설명). 다 놓으면 재해 고르기로 바뀐다 */
 .asm-dock{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:20px;row-gap:6px;align-items:start;padding:16px 22px}
 .asm-dock .asm-top{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 22px;justify-content:flex-start;font-size:14px;color:var(--mute)}
@@ -797,3 +797,35 @@ body.touch #resetBtn kbd,body.touch #quickUndo kbd{display:none}
 /* 탑 이름 제목만 부여군 정림사지체(무료·상업 이용과 웹 임베딩 허용, 저작권 부여군). 1.4MB라 미리 받지 않고, 없으면 Pretendard */
 @font-face{font-family:"Jeongnimsaji";src:url(/fonts/Jeongnimsaji-B.otf) format("opentype");font-weight:700;font-style:normal;font-display:swap}
 .ttl h2.pagoda-ttl{font-family:"Jeongnimsaji",var(--D);font-weight:700;font-synthesis:none}
+/* ==========================================================================
+   대목장 3D 그림(npc.js): 600:780 비례 그대로, 높이로만 크기를 정한다(넓은 화면 170px, 휴대폰 120px).
+   그림에 크림색 테가 있어 테두리·그림자 없음. 말풍선 꼬리는 머리(그림 위에서 약 27%)를 가리킨다.
+   ========================================================================== */
+:root{--npcH:170px}
+@media(max-width:860px){:root{--npcH:120px}}
+.npc-wrap{display:inline-block;flex:none;line-height:0}
+.npc-wrap .npc{display:block;height:var(--npcH);width:auto;aspect-ratio:600/780;object-fit:contain;animation:npcBob 2.4s ease-in-out infinite}
+@keyframes npcBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+.npc-wrap.shake{animation:npcShake .3s ease-in-out}
+@keyframes npcShake{20%{transform:translateX(-4px) rotate(-2deg)}40%{transform:translateX(4px) rotate(2deg)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+.npc-wrap.pop{animation:npcPop .38s var(--ease)}
+@keyframes npcPop{0%{transform:scale(.82);opacity:0}70%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}
+/* 첫 안내: 그림 오른쪽 말풍선, 꼬리는 머리 높이 */
+.g-card{grid-template-columns:auto minmax(0,1fr);align-items:start;gap:10px}
+.g-bubble{margin-bottom:0;margin-top:calc(var(--npcH) * .12)}
+.g-bubble::before{top:calc(var(--npcH) * .15);bottom:auto}
+.g-bubble::after{top:calc(var(--npcH) * .15 + 2px);bottom:auto}
+/* 칭호 창: 만세하는 대목장 */
+.lv-card{grid-template-columns:auto minmax(0,1fr);align-items:center}
+.lv-who{display:flex;justify-content:center}
+/* 놀이 화면 한쪽의 대목장: 시험 결과에 반응(무너짐 걱정 · 완주·칭호 만세 · 다음 조작에서 손 흔들기) */
+#npc{position:fixed;right:444px;bottom:var(--npcBottom,250px);z-index:4;display:flex;align-items:flex-start;gap:10px;pointer-events:none}
+#npc[hidden]{display:none}
+.npc-say{position:relative;margin:calc(var(--npcH) * .12) 0 0;max-width:260px;padding:10px 14px;border-radius:16px;background:var(--jeon);border:1px solid var(--hair);color:var(--ink);font-size:14.5px;font-weight:600;line-height:1.5;word-break:keep-all;animation:npcPop .3s var(--ease)}
+.npc-say::after{content:"";position:absolute;right:-9px;top:calc(var(--npcH) * .15 - var(--npcH) * .12 + 6px);border:9px solid transparent;border-left-color:var(--jeon);border-right:0}
+.npc-say::before{content:"";position:absolute;right:-11px;top:calc(var(--npcH) * .15 - var(--npcH) * .12 + 5px);border:10px solid transparent;border-left-color:rgba(200,160,84,.6);border-right:0}
+@media(max-width:860px){
+  #npc{position:absolute;right:8px;bottom:62px}
+  .npc-say{max-width:min(210px,52vw);font-size:13px;padding:8px 11px}
+}
+@media(prefers-reduced-motion:reduce){.npc-wrap .npc,.npc-wrap.shake,.npc-wrap.pop,.npc-say{animation:none}}

@@ -5,7 +5,7 @@
 //   LV.05 문화유산 수호자: 다섯 재해 모두 1,400년(7.00 완주)
 // 칭호에는 기준 높이·부재 수를 넘는 탑의 기록만 센다(낮고 납작한 더미로 얻지 못하게). 저장: localStorage 'baekje-level'.
 import { DISASTERS, DKEYS } from './disasters.js';
-import { CARPENTER } from './guide.js';
+import { npcImg } from './npc.js';
 
 export const yearsOf = score => Math.round(1400 * Math.pow(Math.max(0, Math.min(6, score - 1)) / 6, 2));
 // 칭호에 세는 탑: 게임 속 높이 5.6 이상(정림사지 탑을 다 쌓으면 6.27, 미륵사지 6.36, 손으로 어긋나게 쌓아도 6.0 안팎 → 그 90%쯤)과 부재 15개 이상
@@ -68,7 +68,7 @@ export function showLevelUp(L) {
   if (Array.isArray(L)) { const [first, ...rest] = L; if (!first) return; showLevelUp(first); if (rest.length) document.getElementById('lvup').__next = rest; return; }
   document.getElementById('lvup')?.remove();
   const el = document.createElement('div'); el.id = 'lvup'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'lvupTtl');
-  el.innerHTML = `<div class="lv-card"><div class="lv-who">${CARPENTER}</div>
+  el.innerHTML = `<div class="lv-card"><div class="lv-who">${npcImg('celebrate', 'pop')}</div>
     <div class="lv-body"><p class="lv-kicker">대목장이 새 칭호를 건넵니다</p>
       <div class="lv-badge">${pagodaIcon(L.lv, 30)}<span>LV.0${L.lv}</span></div>
       <h2 id="lvupTtl">${L.name}</h2><p class="lv-msg">“${L.msg}”</p>${coupon(L)}

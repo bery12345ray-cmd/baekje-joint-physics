@@ -1,0 +1,19 @@
+<!doctype html><html><head><style>html,body{margin:0;background:transparent;overflow:hidden}</style>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script></head>
+<body><script type="module">
+import * as THREE from 'three';
+import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
+import { createDaemokjang } from './daemokjang3d.js';
+const q = new URLSearchParams(location.search), pose = q.get('pose') || 'guide', W = +(q.get('w') || 900), Hh = +(q.get('h') || 1200);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, Hh); renderer.setClearColor(0x000000, 0);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+if (q.get('bg') === 'sky') scene.background = new THREE.Color(0x8fd3f0);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xd8cbb8, 1.7));
+const sun = new THREE.DirectionalLight(0xffffff, 2.4); sun.position.set(-3, 5, 6); scene.add(sun);
+const npc = createDaemokjang({ pose }); npc.rotation.y = +(q.get('ry') || 0.28); scene.add(npc);
+const cam = new THREE.PerspectiveCamera(20, W / Hh, 0.1, 100); cam.position.set(0, 1.75, 10.2); cam.lookAt(0, 1.62, 0);
+const fx = new OutlineEffect(renderer, { defaultThickness: 0.011, defaultColor: [0.012, 0.009, 0.007] });
+fx.render(scene, cam); document.title = 'done';
+</script></body></html>

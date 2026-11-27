@@ -7,6 +7,7 @@ import { buildVillage, VMAT, resetVillageMats, loadVillageModels } from './villa
 import { showLeaflet, leafletOpen } from './leaflet.js';
 import { localBuild, askBuild } from './towerchat.js';
 import { startGuide, guideSeen } from './guide.js';
+import { companionPanic, companionCheer, hideCompanion } from './npc.js';
 import { recordScore, showLevelUp, titlesHTML, pagodaIcon, badgeText, level, LEVELS } from './levels.js';
 import { boardEl, showBoard, submitScore, getNick } from './board.js';
 import { DISASTERS, DKEYS, caption } from './disasters.js';
@@ -338,7 +339,7 @@ function startTest(mode = 'ramp') {
   S.preEv = { ...S.ev };
   S.pre = sim.stats(); S.ev = { breaks: 0, joints: 0 }; S.testing = true; S.crit = null; S.rampShown = 1;
   sim.startQuake(S.mag, mode, S.disaster);
-  showCaption(caption(S.disaster));
+  showCaption(caption(S.disaster)); hideCompanion(); // 시험 동안에는 탑이 잘 보이게
   banner(`${DN()} 시험 시작 · 세기 ${RAMP.FROM.toFixed(2)}에서 ${RAMP.TO.toFixed(2)}까지`, '#fff');
   render();
 }
@@ -354,6 +355,9 @@ function finishTest() {
   showCaption('');
   const kind = q.kind || 'quake', dn = DISASTERS[kind].name;
   S.last.kind = kind;
+  // 대목장 반응: 무너지면 걱정, 7.00 완주면 만세(다음 조작에서 손 흔드는 자세로)
+  if (q.collapsed) companionPanic(`${dn} 세기 ${(score ?? q.collapseMag).toFixed(2)}에서 흔들렸소.`);
+  else if (score === RAMP.TO) companionCheer(`${dn} 세기 7.00까지 버텼소!`);
   if (q.aborted) banner(`${dn} 시험을 멈췄습니다 · 점수는 남기지 않았어요`, '#fff');
   else if (!q.collapsed) banner(q.mode === 'ramp' ? `${dn} 세기 ${RAMP.TO.toFixed(2)}까지 모두 버텼습니다 · 만점!` : `${dn} 세기 ${q.mag.toFixed(1)}을 버텼습니다`, '#fff3d2');
   const rec = score ?? (q.mode === 'fixed' ? survived : 0);
@@ -364,7 +368,7 @@ function finishTest() {
   if (score != null && S.stage !== 3) {
     const A = asm(), acc = A.plan.length ? A.placed.filter(p => p.snap).length / A.plan.length : 1;
     const r = recordScore(kind, score, S.pre, acc); S.last.years = r.years; S.last.eligible = r.eligible; S.last.skilled = r.skilled; S.last.acc = acc; // 버틴 햇수·칭호(levels.js)
-    if (r.up) setTimeout(() => showLevelUp(r.up), 1200);
+    if (r.up) setTimeout(() => { showLevelUp(r.up); if (!q.collapsed) companionCheer(`${r.up[r.up.length - 1].name} 칭호를 받았소!`); }, 1200);
     submitScore(S.stage, score, kind, Math.max(1, level())); // 온라인 순위(연결 없으면 이 기기 기록만)
   }
   const ev = evidence(S.pre, S.last, S.ev, S.preEv || { breaks: 0 }), diag = diagnose(S.pre, S.last, ev);
@@ -675,6 +679,7 @@ function resetCamera() { controls.enableDamping = false; controls.update(); came
 // 처음 상태로: 놓은 부재를 모두 치우고, 지진을 멈추고, 시점을 처음 자리로
 function resetStage() {
   if (sim.quake) sim.stopQuake();
+  hideCompanion();
   showCaption('');
   S.testing = false; S.last = null; S.crit = null; S.pick = false; S.dirty = false;
   if (S.stage === 3) { S.design = []; S.example = null; } else resetAsm(S.stage);
@@ -1172,6 +1177,7 @@ function layoutHint() {
   nextEl.style.maxHeight = Math.max(90, room) + 'px';
   const r = nextEl.hidden ? { left: 20, top: top0, width: 200, bottom: top0 - GAP } : nextEl.getBoundingClientRect();
   Object.assign(st, { left: r.left + 'px', width: r.width + 'px', top: r.bottom + GAP + 'px', right: 'auto', bottom: 'auto' });
+  document.documentElement.style.setProperty('--npcBottom', innerHeight - dockEl.getBoundingClientRect().top + 14 + 'px'); // 대목장은 재해 판 바로 위
 }
 new ResizeObserver(layoutHint).observe(dockEl); new ResizeObserver(layoutHint).observe(nextEl); new ResizeObserver(layoutHint).observe(hintEl);
 addEventListener('resize', layoutHint);
