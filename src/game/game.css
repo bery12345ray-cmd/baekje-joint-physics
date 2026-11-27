@@ -542,3 +542,22 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
 .lf-end{padding:0 34px 4px;display:flex;justify-content:flex-end}
 .lf-white .lf-go{background:var(--lf-navy);color:#fff}
 .lf-green .lf-go{background:#fff;color:var(--lf-green)}
+/* 중학생 눈높이: 한눈에 보기 표, 알아 두면 좋아요 목록, 지진 세기 설명 */
+.lead{margin:6px 0 10px;font-size:15.5px;line-height:1.7;word-break:keep-all;color:var(--ink)}
+.lead b{color:var(--pat)}
+.facts2{margin:10px 0 14px;display:grid;gap:0;border:1px solid rgba(201,190,166,.9);border-radius:var(--r-md);overflow:hidden;background:#fbf8f1}
+.facts2 div{display:grid;grid-template-columns:5.2em 1fr;align-items:center;border-top:1px solid rgba(201,190,166,.6)}
+.facts2 div:first-child{border-top:0}
+.facts2 dt{padding:9px 12px;font-size:14px;font-weight:700;color:var(--pat);background:#efe9db;height:100%;display:flex;align-items:center}
+.facts2 dd{margin:0;padding:9px 12px;font-size:15.5px;line-height:1.5;color:var(--ink);word-break:keep-all}
+.tips{margin:12px 0}
+.tips h3{margin:0 0 6px}
+.tips ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.tips li{position:relative;padding:10px 12px 10px 34px;background:#fbf8f1;border:1px solid rgba(201,190,166,.7);border-radius:var(--r-sm);font-size:15px;line-height:1.65;word-break:keep-all}
+.tips li::before{content:"";position:absolute;left:13px;top:17px;width:9px;height:9px;border-radius:50%;background:var(--gold)}
+.tips li b{color:var(--pat)}
+.qdesc{margin:6px 0 0;font-size:14.5px;line-height:1.5;color:var(--ink);word-break:keep-all}
+.qdesc small{display:block;font-size:12px;color:var(--mute)}
+#magWord{font-size:15px;font-weight:700;color:var(--red);margin-left:4px}
+.steps li i{font-style:normal}
+.facts2,.tips,.lead{flex-shrink:0}
