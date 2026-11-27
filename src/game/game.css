@@ -3,7 +3,7 @@
    PICTURE: 실시간 3D 탑, 뒤로 산수문전 겹산, 금동 수막새 로고
    COLOUR and TYPE: 토기 흑회 #2e2b27, 전돌 회백 #e9e4d8, 금동 #b8923a, 청동녹 #3f7d6e, 적갈 #a8452c / 송명 + 고운돋움
    LAYOUT: 상단 마당 표시, 왼쪽 위 정보판, 오른쪽 전돌 판, 아래 지진 조작판, 셋째 마당은 왼쪽 도구판. 860px 아래는 세로로 쌓음 */
-:root{--togi:#2e2b27;--togi2:#3d3933;--jeon:#e9e4d8;--jeon2:#ddd6c6;--line:#b9b09c;--gold:#b8923a;--goldl:#e0bf6a;--pat:#3f7d6e;--red:#a8452c;--ink:#2b2824;--mute:#5e574c;--D:"Song Myung",serif;--B:"Gowun Dodum",system-ui,sans-serif;color-scheme:light}
+:root{--togi:#2e2b27;--togi2:#3d3933;--jeon:#e9e4d8;--jeon2:#ddd6c6;--line:#b9b09c;--gold:#b8923a;--goldl:#e0bf6a;--pat:#3f7d6e;--red:#a8452c;--ink:#2b2824;--mute:#5e574c;--D:"Pretendard Variable",Pretendard,system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;--B:"Pretendard Variable",Pretendard,system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;color-scheme:light}
 *{box-sizing:border-box;min-width:0}
 html,body{height:100%}
 body{margin:0;background:#cdcdbd;color:var(--ink);font:15px/1.55 var(--B);overflow:hidden}
@@ -656,3 +656,18 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,#critique .title,.nx b,.ex b,.real figcaptio
   .dpick button{min-height:52px;font-size:13px}
 }
 @media(max-width:420px){.dpick{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}.dpick button svg{width:18px;height:18px}}
+/* ==========================================================================
+   타이포그래피 (2026-11-27): 모든 글자를 Pretendard Variable 하나로. 명조 대신 굵기·크기로 위계를 만든다.
+   제목 800 · 소제목·숫자·강조 700 · 단추 600 · 본문 400~500
+   ========================================================================== */
+body{font-family:var(--B);font-weight:400;letter-spacing:-.01em;font-feature-settings:"tnum" 0}
+.title-in h1,.ttl h2,.brand b,.qq,#banner,.lf-head h2{font-weight:800;letter-spacing:-.025em}
+#panel h3,.sheet h3,.dock-h b,.real figcaption b,.spirit b,.evid h4,#critique .title,.nx b,.ex b,#hud strong,.live b,.result b,.records b,.facts b,
+.bd-list li b,.bd-local b,.asm-top b,.holding b,.cnt,.evid .cat b,#tabs a i,.seal,#xbar .qmark,.bd-list li i,.ex-world,#err,.maglab b,.bd-head h3,.tips h3{font-weight:700;letter-spacing:-.015em}
+.btn,.seg button,.tbtn,.dpick button,#xbar button,#quickUndo,#resetBtn,.dock-tg,.bd-dis button,.lf-go,.lf-skip,.lf-nav button,.choices .btn,.ex{font-weight:600}
+.btn small,.choices .btn,.ex small,.ex-world::after{font-weight:400}
+.g-text,#caption,.drec,.locked,.title-in p,.lf-en,.lf-han,.lf-head span,label.sl output,details summary,.maglab>span:first-child,#critique p,.facts2 dt{font-weight:500}
+.tl,.ticks,.brand span,#tabs a span,.drec small,.credit,.note,.qdesc{font-weight:400}
+#hud strong,.live b,.result b,.bd-list,.bd-local b,.records b,#liveMag,#hMag{font-variant-numeric:tabular-nums}
+/* 조작 안내: 왼쪽 열 '다음 부재' 상자 바로 아래, 같은 너비의 작은 상자(위치는 game.js layoutHint가 잡는다) */
+#hint{box-sizing:border-box;max-width:none;border-radius:var(--r-md);padding:8px 12px;font-size:13px;line-height:1.5;text-align:left;text-wrap:pretty;word-break:keep-all;box-shadow:var(--sh-1)}

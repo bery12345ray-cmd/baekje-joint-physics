@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import markup from './game/markup.html?raw'
+import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css' // Pretendard Variable(SIL OFL), 글자 범위별로 나눈 woff2를 직접 싣는다
 import './game/game.css'
 
 // 데모 아티팩트(바닐라 Three.js + Rapier) 게임을 그대로 띄운다.

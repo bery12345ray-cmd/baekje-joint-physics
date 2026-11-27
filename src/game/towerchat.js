@@ -84,7 +84,7 @@ export function voxelBuild(text) {
   const cv = document.createElement('canvas'); cv.width = N; cv.height = H;
   const c = cv.getContext('2d', { willReadFrequently: true });
   c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.font = hit ? `${H - 2}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif` : `900 ${H - 1}px "Gowun Dodum","Malgun Gothic",sans-serif`;
+  c.font = hit ? `${H - 2}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif` : `900 ${H - 1}px "Pretendard Variable",Pretendard,"Malgun Gothic",sans-serif`; // 글꼴은 game.js chatSend가 미리 받아 둔다
   c.fillStyle = '#8a5a33'; c.fillText(glyph, N / 2, H / 2 + 1);
   if (!hit) { c.strokeStyle = '#8a5a33'; c.lineWidth = 1.6; c.strokeText(glyph, N / 2, H / 2 + 1); } // 글자 획을 굵게(가는 획은 서 있기 어렵다)
   const px = c.getImageData(0, 0, N, H).data, cell = 0.3, depth = 0.9, A = 110;

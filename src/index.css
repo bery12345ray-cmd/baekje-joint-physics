@@ -10,6 +10,6 @@
   --color-baekje-pat: #3f7d6e;   /* 청동녹 */
   --color-baekje-red: #a8452c;   /* 적갈 */
 
-  --font-serif: "Song Myung", serif;
-  --font-sans: "Gowun Dodum", system-ui, sans-serif;
+  --font-display: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+  --font-sans: "Pretendard Variable", Pretendard, system-ui, sans-serif;
 }

@@ -9,8 +9,11 @@ import { localBuild, askBuild } from './towerchat.js';
 import { startGuide, guideSeen } from './guide.js';
 import { boardEl, showBoard, submitScore } from './board.js';
 import { DISASTERS, DKEYS, caption } from './disasters.js';
-import { makeWeather } from './weather.js';
+import { makeWeather, snowify } from './weather.js';
 const DEBUG = new URLSearchParams(location.search).get('debug') === '1'; // ?debug=1: FPS 표시(시험용)
+// 캔버스에 쓰는 글꼴(3D 이름표 등): 그 글꼴·글자를 받아 둔 뒤(document.fonts.load + ready)에만 그린다
+export const CANVAS_FONT = '"Pretendard Variable", Pretendard, system-ui, sans-serif';
+export async function fontReady(font, text) { try { if (document.fonts) { await document.fonts.load(font, text); await document.fonts.ready; } } catch { /* 글꼴 API 없음: 그냥 그린다 */ } }
 // 확장 마당(미륵사지)에 들어갈 때 안내 리플렛을 한 번 띄운다
 const stageLeaflet = (force = false) => { if (S.stage === 1 && !KIOSK_Q) showLeaflet('mireuk', { once: !force }); }; // 정림사지 리플렛은 2026-11-27 뺐다
 const KIOSK_Q = new URLSearchParams(location.search).get('kiosk') === '1';
@@ -161,6 +164,8 @@ const groundMesh = new THREE.Mesh(new THREE.BoxGeometry(40, 1, 40), new THREE.Me
 groundMesh.receiveShadow = true; scene.add(groundMesh);
 const field = new THREE.Mesh(new THREE.CircleGeometry(90, 48), new THREE.MeshStandardMaterial({ color: 0x9fa58f, roughness: 1 }));
 field.rotation.x = -Math.PI / 2; field.position.y = -0.6; field.visible = false; scene.add(field);
+// 폭설: 위를 향한 면(탑 부재·지붕돌·땅·마을 지붕)이 눈 깊이만큼 하얗게(weather.js snowify, 셰이더에 섞음)
+for (const m of [...Object.values(MATS), groundMesh.material, field.material, ...Object.values(VMAT)]) snowify(m);
 // 산수문전처럼 겹겹이 선 산 능선
 for (let i = 0; i < 0; i++) { // 산은 CSS 산수문전 배경이 맡는다
   const a = i / 26 * Math.PI * 2 + rnd(-.1, .1), r = rnd(50, 64), h = rnd(5, 11);
@@ -233,7 +238,7 @@ function chatHTML() {
 async function chatSend(text) {
   S.chat = S.chat || []; S.chat.push({ who: 'me', t: text }); S.chatBusy = true; render();
   let res = await askBuild(text), fallback = !res;
-  if (!res) res = localBuild(text);
+  if (!res) { await fontReady(`900 15px ${CANVAS_FONT}`, text); res = localBuild(text); } // 글자 모양을 캔버스로 읽으니 글꼴부터 받아 둔다
   S.chatBusy = false;
   if (res && res.example) { S.design = EXAMPLES[res.example].design(); S.example = res.example; S.last = null; rebuild(); fitCamera(); S.chat.push({ who: 'ai', t: `${EXAMPLES[res.example].name}을(를) 불러왔어요. 지진 시험을 눌러 보세요.` }); }
   else if (res && res.design && res.design.length) { S.design = res.design; S.example = null; S.last = null; rebuild(); fitCamera(); S.chat.push({ who: 'ai', t: res.reply + (fallback ? ' (내장 설계)' : '') }); }
@@ -303,7 +308,7 @@ function buildS3() {
   if (EX && (S.example === 'jeong' || S.example === 'mireuk')) { sim.armor = true; sim.quakeGain = 0.5; for (const b of sim.blocks) b.col.setFriction(1.4); }
   if (EX && EX.fragile) { for (const j of [...sim.joints]) sim.removeJoint(j); for (const b of sim.blocks) b.col.setFriction(0.3); const fr = EXAMPLES[S.example].fragile; sim.quakeGain = typeof fr === 'number' ? fr : 1.6; }
 }
-const rebuild = () => { S.dirty = false; S.crit = null; (S.stage === 3 ? buildS3 : buildAsm)(); syncVillage(); };
+const rebuild = () => { S.dirty = false; S.crit = null; (S.stage === 3 ? buildS3 : buildAsm)(); syncVillage(); WX.clearSnow(); }; // 다시 세우면 눈도 걷는다
 // ---------- 탑 둘레: 백제 마을과 정림사 가람(둘째 마당은 "백제 때 / 오늘날" 전환) ----------
 let VIL = null, vilKey = '';
 const vilLabels = new THREE.Group();
@@ -851,6 +856,7 @@ function render() {
   const nx = $('#next'); nx.innerHTML = nextHTML(); nx.hidden = S.stage === 3;
   const tools = $('#tools'); tools.innerHTML = toolsHTML(); tools.hidden = S.stage !== 3;
   document.body.dataset.stage = S.stage;
+  if (typeof layoutHint === 'function') requestAnimationFrame(layoutHint);
 }
 
 const ui = $('#ui');
@@ -1100,19 +1106,37 @@ const ro = new ResizeObserver(() => { const w = stageEl.clientWidth, h = stageEl
   const hf = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(20)) * 1.12); camera.fov = Math.min(78, Math.max(40, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(hf / 2) / camera.aspect))));
   camera.updateProjectionMatrix(); });
 ro.observe(stageEl);
-// 안내 글(#hint)은 재해 고르기 판 바로 위에: 판 높이가 바뀌면(접기·펼치기·화면 크기) 따라 올라간다
-new ResizeObserver(() => { const h = $('#hint'); h.style.bottom = innerWidth > 860 ? $('#dock').offsetHeight + 32 + 'px' : ''; }).observe($('#dock'));
+// 조작 안내(#hint)는 왼쪽 열 '다음 부재' 상자 바로 아래에(같은 왼쪽 끝·같은 너비, 10px 틈). 다음 부재 상자가 없는 마당은 그 자리 그대로.
+// 둘이 아래 재해 판에 닿지 않게 다음 부재 상자의 최대 높이를 줄인다. 좁은 화면(860px 이하)은 CSS가 숨긴다.
+const hintEl = $('#hint'), nextEl = $('#next'), dockEl = $('#dock'), GAP = 10;
+function layoutHint() {
+  const st = hintEl.style;
+  if (innerWidth <= 860) { st.left = st.top = st.width = st.right = st.bottom = ''; nextEl.style.maxHeight = ''; return; }
+  const top0 = 200, room = dockEl.getBoundingClientRect().top - 16 - top0 - GAP - hintEl.offsetHeight;
+  nextEl.style.maxHeight = Math.max(90, room) + 'px';
+  const r = nextEl.hidden ? { left: 20, top: top0, width: 200, bottom: top0 - GAP } : nextEl.getBoundingClientRect();
+  Object.assign(st, { left: r.left + 'px', width: r.width + 'px', top: r.bottom + GAP + 'px', right: 'auto', bottom: 'auto' });
+}
+new ResizeObserver(layoutHint).observe(dockEl); new ResizeObserver(layoutHint).observe(nextEl); new ResizeObserver(layoutHint).observe(hintEl);
+addEventListener('resize', layoutHint);
 let last = performance.now(), frameN = 0;
 // 장면 이름표(오늘날 정림사지 표시에 쓴다)
 const fx = new THREE.Group(); scene.add(fx);
 function label(text, x, y, z, { gold = false, w = 3.2 } = {}) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 112; const g = c.getContext('2d');
-  g.fillStyle = gold ? 'rgba(20,19,17,.88)' : 'rgba(234,228,215,.94)'; g.strokeStyle = gold ? '#c8a054' : '#9c917c'; g.lineWidth = 4;
-  g.beginPath(); g.roundRect(4, 4, 504, 104, 26); g.fill(); g.stroke();
-  g.fillStyle = gold ? '#e2c27c' : '#1d1b18'; g.font = `${gold ? 46 : 40}px "Song Myung", serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 58, 480);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false, depthWrite: false }));
-  s.scale.set(w, w * 112 / 512, 1); s.position.set(x, y, z); s.renderOrder = 20; fx.add(s); return s;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
+  s.scale.set(w, w * 112 / 512, 1); s.position.set(x, y, z); s.renderOrder = 20; fx.add(s);
+  // 글꼴(Pretendard, 글자 범위별로 나뉨)이 이 글자들까지 다 받아진 뒤에 그린다: 대체 글꼴이 텍스처에 박히지 않게, 그때까지는 투명
+  const font = `${gold ? 800 : 700} ${gold ? 46 : 40}px ${CANVAS_FONT}`;
+  fontReady(font, text).then(() => {
+    g.clearRect(0, 0, 512, 112);
+    g.fillStyle = gold ? 'rgba(20,19,17,.88)' : 'rgba(234,228,215,.94)'; g.strokeStyle = gold ? '#c8a054' : '#9c917c'; g.lineWidth = 4;
+    g.beginPath(); g.roundRect(4, 4, 504, 104, 26); g.fill(); g.stroke();
+    g.fillStyle = gold ? '#e2c27c' : '#1d1b18'; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 58, 480);
+    t.needsUpdate = true; s.material.opacity = 1;
+  });
+  return s;
 }
 
 function disasterHTML() { // 시험은 지진만. 목탑→석탑 이유 설명창 버튼
