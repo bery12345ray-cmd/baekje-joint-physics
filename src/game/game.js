@@ -31,7 +31,8 @@ const TUT = [
   ['2·3층 올리고 상륜 꽂기', '위로 갈수록 한 층씩 줄여(체감) 올립니다. 꼭대기에 상륜을 꽂으면 완성입니다.'],
   ['지진 시험', '지진 세기를 정하고 흔들어 보세요. 결구 방식을 바꿔 다시 지으면 차이가 보입니다.'],
 ];
-const HIST = { taper: 0.86, roof: 1.75, body: 1, ornament: false };
+// 실제 정림사지 오층석탑 사진에서 잰 비례: 기단은 1층 지붕돌보다 좁고 낮은 두 단, 1층 몸돌은 너비의 절반쯤 높이, 2층부터 몸돌이 아주 낮다
+const HIST = { taper: 0.86, roof: 1.63, body: 1, ornament: false, first: 1.1, up: 0.45, bt: 0.78, jw: 3.65, jh: 0.55, gw: 3.0, gh: 0.42 };
 const ORNATE = { body: 1.6, roof: 2.2, ornament: true }; // 화이불치를 어긴 탑: 몸돌·지붕돌을 키우고 장식석을 얹음
 // 부재를 들 때 보여 주는 실제 건축 기법(국가유산청 국가유산포털·국립부여박물관 해설을 바탕으로 요약)
 const PART_INFO = {
@@ -841,7 +842,7 @@ function planToDesign(build) {
   });
 }
 const EXAMPLES = {
-  jeong: { name: '부여 정림사지 오층석탑', tag: '충남 · 백제 · 오늘까지 남음', img: 'pagoda-jeongnimsa.svg', design: () => planToDesign(r => buildJeongnimsa(r)) },
+  jeong: { name: '부여 정림사지 오층석탑', tag: '충남 · 백제 · 오늘까지 남음', img: 'pagoda-jeongnimsa.svg', design: () => planToDesign(r => buildJeongnimsa(r, HIST)) },
   mireuk: { name: '익산 미륵사지 석탑', tag: '전북 · 백제 639년 · 오늘까지 남음', img: 'pagoda-mireuksa.svg', design: () => planToDesign(r => buildJeongnimsa(r, { stories: 6, k: 1.1, first: 1.2, taper: 0.92, roof: 1.55, body: 0.75 })) },
   muryang: { fragile: true, name: '부여 무량사 오층석탑', tag: '충남 · 고려 · 백제계', img: 'pagoda-muryangsa.svg', design: () => planToDesign(r => buildJeongnimsa(r, { taper: 0.9, roof: 2.0, body: 0.8, first: 0.95, steps: 2, rt: 0.3, tone: 'warm' })) },
   cheongnyang: { fragile: true, name: '공주 청량사지 남매탑', tag: '충남 · 고려 · 백제계 · 오층과 칠층', img: 'pagoda-cheongnyangsa.svg', design: () => planToDesign(r => { buildJeongnimsa(r, { k: 0.55, x: -2.1, taper: 0.86, roof: 1.65, first: 1.2, tone: 'pink' }); buildJeongnimsa(r, { k: 0.55, x: 2.1, stories: 7, taper: 0.9, roof: 1.6, first: 1.05, body: 0.85, tone: 'pink' }); }) },

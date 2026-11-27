@@ -211,22 +211,22 @@ export class Sim {
 // ---------- preset builders ----------
 // 정림사지 오층석탑: dry-stacked granite, low wide roof stones, gentle taper.
 // 다른 석탑도 같은 함수로 쌓는다: stories(층수), k(전체 크기), x(놓는 자리), first(1층 몸돌 높이), steps(기단 층단 수), rt(지붕돌 두께)
-export function buildJeongnimsa(sim, { taper = 0.86, roof = 1.75, body = 1, ornament = false, stories = 5, k = 1, x: ox = 0, first = 1.45, steps = 0, rt: rtk = 0.24, tone } = {}) {
+export function buildJeongnimsa(sim, { taper = 0.86, roof = 1.75, body = 1, ornament = false, stories = 5, k = 1, x: ox = 0, first = 1.45, steps = 0, rt: rtk = 0.24, tone, up = 0.55, jw = 5.2, jh = 0.35, gw = 4.3, gh = 0.4, bt } = {}) {
   const S = (size, y, part, x = 0, z = 0) => sim.addBlock({ mat: 'granite', size: size.map(v => v * k), part, po: tone ? { tone } : undefined, pos: [ox + x * k, (y + size[1] / 2) * k + 0.001, z * k] });
   let y = 0;
-  S([5.2, 0.35, 5.2], y, 'jidae'); y += 0.35;
-  for (let t = 0; t < steps; t++) { S([4.9 - t * 0.3, 0.3, 4.9 - t * 0.3], y, 'jidae'); y += 0.3; } // 층단으로 쌓은 두툼한 기단(무량사)
-  S([4.3, 0.4, 4.3], y, 'gidan'); y += 0.4;
-  let w = 2.3;
+  S([jw, jh, jw], y, 'jidae'); y += jh;
+  for (let t = 0; t < steps; t++) { S([jw - 0.3 - t * 0.3, 0.3, jw - 0.3 - t * 0.3], y, 'jidae'); y += 0.3; } // 층단으로 쌓은 두툼한 기단(무량사)
+  S([gw, gh, gw], y, 'gidan'); y += gh;
+  let w = 2.3, rw0 = 2.3 * roof; // bt: 몸돌이 줄어드는 비율(정림사지는 몸돌이 지붕돌보다 빨리 좁아진다)
   for (let i = 0; i < stories; i++) {
-    const h = (i === 0 ? first : 0.55 * Math.pow(taper, i - 1)) * body;
+    const h = (i === 0 ? first : up * Math.pow(taper, i - 1)) * body;
     S([w, h, w], y, i === 0 ? 'tapsin1' : 'tapsin'); // 1층 몸돌은 우주와 면석을 갖춘 한 덩어리로 쌓는다
     y += h;
     S([w * 1.22, 0.16, w * 1.22], y, 'batchim'); y += 0.16;
-    const rw = w * roof, rt = ornament ? 0.42 : rtk;
+    const rw = bt ? rw0 * Math.pow(taper, i) : w * roof, rt = ornament ? 0.42 : rtk;
     S([rw, rt, rw], y, 'okgae'); y += rt;
     if (ornament) for (const sx of [-1, 1]) for (const sz of [-1, 1]) S([0.2, 0.5, 0.2], y, 'jangsik', sx * (rw / 2 - 0.15), sz * (rw / 2 - 0.15));
-    w *= taper;
+    w *= bt || taper;
   }
   S([w * 0.9, 0.3, w * 0.9], y, 'noban'); y += 0.3;
   S([0.5, 0.55, 0.5], y, 'bokbal');

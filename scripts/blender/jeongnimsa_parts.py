@@ -54,7 +54,7 @@ def eave_roof(name, a, t, e, lift, z0, z1, m, n=24):
                 x, y = [(u, -1), (1, u), (-u, 1), (-1, -u)][s]
                 L = lift * (abs(x * y) ** 2.4) if use_lift else 0
                 # 처마선이 가운데로 살짝 처지게(완만한 곡선)
-                sag = -0.25 * lift * (1 - max(abs(x), abs(y)) ** 2) if use_lift else 0
+                sag = -0.1 * lift * (1 - max(abs(x), abs(y)) ** 2) if use_lift else 0
                 pts.append(bm.verts.new((x * half, y * half, z + L + sag)))
         return pts
     R0, R1, R2 = ring(a, z0, True), ring(a, z0 + e, True), ring(t, z1, False)
@@ -90,77 +90,85 @@ def export(part):
 
 STONE = (0.74, 0.72, 0.67); DARK = (0.62, 0.60, 0.55)
 
-def jidae():  # 지대석 5.2 × 0.35 × 5.2: 두툼한 판돌 넷을 맞댄 모양(이음줄)
+def course(name, w, h, z0, cuts_x, cuts_y, m, gap=0.014, bev=0.018):
+    # 한 켜(層)의 돌: 판돌을 바둑판처럼 맞대어 사이에 이음줄이 보이게 깐다(cuts는 0~1 사이 나눔 위치)
+    xs = [0] + list(cuts_x) + [1]; ys = [0] + list(cuts_y) + [1]
+    for i in range(len(xs) - 1):
+        for j in range(len(ys) - 1):
+            x0, x1 = (xs[i] - .5) * w, (xs[i + 1] - .5) * w
+            y0, y1 = (ys[j] - .5) * w, (ys[j + 1] - .5) * w
+            box(name, x1 - x0 - gap, y1 - y0 - gap, h - gap * .6, ((x0 + x1) / 2, (y0 + y1) / 2, z0 + h / 2), m, bevel=bev)
+
+def jidae():  # 지대석 3.65 × 0.55: 낮은 두 켜의 바닥돌(사진: 아래 켜가 조금 넓고, 길고 짧은 돌이 엇갈려 맞대어짐)
     s = mat('stone', STONE)
+    course('lower', 3.65, 0.29, 0.0, (0.22, 0.5, 0.79), (0.3, 0.68), s)
+    course('upper', 3.42, 0.26, 0.29, (0.33, 0.61), (0.17, 0.47, 0.83), s)
+
+def gidan():  # 기단 3.0 × 0.42: 면석 + 모서리 우주 + 가운데 탱주 + 위를 덮는 얇은 갑석
+    s = mat('stone', STONE); d = mat('stone_dark', DARK)
+    body = 0.33; fw = 2.84
+    course('myeonseok', fw, body, 0.0, (0.5,), (0.5,), s, gap=0.012, bev=0.012)
+    o = fw / 2 + 0.02
     for ix in (-1, 1):
         for iy in (-1, 1):
-            box('slab', 2.58, 2.58, 0.35, (ix * 1.3, iy * 1.3, 0.175), s, bevel=0.03)
+            box('woo', 0.2, 0.2, body, (ix * (o - 0.1), iy * (o - 0.1), body / 2), d, bevel=0.012)
+    for side in range(4):  # 가운데 탱주(면마다 하나)
+        x, y = [(0, o - 0.015), (0, -(o - 0.015)), (o - 0.015, 0), (-(o - 0.015), 0)][side]
+        sx, sy = (0.15, 0.04) if side < 2 else (0.04, 0.15)
+        box('tang', sx, sy, body, (x, y, body / 2), d, bevel=0.008)
+    frustum('gapseok', 3.0, 2.92, 0.09, body, s, bevel=0.012)
 
-def gidan():  # 기단 4.3 × 0.4 × 4.3: 면석 + 모서리 우주 + 가운데 탱주 + 위를 덮는 갑석(살짝 경사)
+def tapsin1():  # 1층 몸돌 2.3 × 1.1: 모서리마다 따로 세운 우주(민흘림), 면마다 면석 두 장, 위가 살짝 좁음
     s = mat('stone', STONE); d = mat('stone_dark', DARK)
-    body = 0.29; fw = 3.95
-    box('myeonseok', fw, fw, body, (0, 0, body / 2), s, bevel=0.015)
-    out = fw / 2 + 0.03
-    for ix in (-1, 1):
-        for iy in (-1, 1):
-            box('woo', 0.24, 0.24, body, (ix * (out - 0.12), iy * (out - 0.12), body / 2), d, bevel=0.012)
-    for k in (-1, 1):
-        for side in range(4):
-            x, y = [(k * fw / 6, out - 0.02), (k * fw / 6, -(out - 0.02)), (out - 0.02, k * fw / 6), (-(out - 0.02), k * fw / 6)][side]
-            sx, sy = (0.16, 0.05) if side < 2 else (0.05, 0.16)
-            box('tang', sx, sy, body, (x, y, body / 2), d, bevel=0.008)
-    # 갑석: 아래는 넓고 위는 살짝 좁게(빗물이 흐르는 경사)
-    frustum('gapseok', 4.3, 4.05, 0.11, body, s, bevel=0.01)
-
-def tapsin1():  # 1층 몸돌 2.3 × 1.45 × 2.3: 위가 좁은 몸돌, 민흘림 우주, 면석 이음줄
-    s = mat('stone', STONE); d = mat('stone_dark', DARK)
-    h = 1.45; wb = 2.06; wt = 1.98
-    frustum('body', wb, wt, h, 0, s, bevel=0.012)
-    for ix in (-1, 1):
-        for iy in (-1, 1):
-            o = frustum('woo', 0.26, 0.22, h, 0, d, bevel=0.01)
-            o.location = (ix * (wb / 2 - 0.1), iy * (wb / 2 - 0.1), 0)
-    for k in (-1, 1):  # 면석 이음(가운데 세로줄)
-        box('seam', 0.025, 0.02, h * 0.96, (0, k * (wb + wt) / 4, h / 2), d)
-        box('seam', 0.02, 0.025, h * 0.96, (k * (wb + wt) / 4, 0, h / 2), d)
-    # 미세한 기준 상자(경계 상자를 부재 상자 2.3 × 2.3에 맞추기 위한 투명하지 않은 얇은 판은 두지 않고, 우주가 바깥 너비를 만든다)
-
-def tapsin():  # 2층 이상 몸돌 2.0 × 0.55 × 2.0
-    s = mat('stone', STONE); d = mat('stone_dark', DARK)
-    h = 0.55; wb = 1.9; wt = 1.82
+    h = 1.1; wb = 2.2; wt = 2.14
     frustum('body', wb, wt, h, 0, s, bevel=0.01)
     for ix in (-1, 1):
         for iy in (-1, 1):
-            o = frustum('woo', 0.16, 0.14, h, 0, d, bevel=0.008)
-            o.location = (ix * (wb / 2 - 0.06), iy * (wb / 2 - 0.06), 0)
+            o = frustum('woo', 0.4, 0.36, h, 0, d, bevel=0.012)
+            o.location = (ix * (1.15 - 0.2), iy * (1.15 - 0.2), 0)
+    for k in (-1, 1):  # 면석 두 장 사이 세로 이음
+        box('seam', 0.03, 0.06, h * 0.98, (0, k * (wb + wt) / 4, h / 2), d)
+        box('seam', 0.06, 0.03, h * 0.98, (k * (wb + wt) / 4, 0, h / 2), d)
+    for k in (-1, 1):  # 우주와 면석 사이 이음
+        for side in (-1, 1):
+            box('seam', 0.02, 0.06, h * 0.98, (k * 0.75, side * (wb + wt) / 4, h / 2), d)
+            box('seam', 0.06, 0.02, h * 0.98, (side * (wb + wt) / 4, k * 0.75, h / 2), d)
 
-def batchim():  # 옥개받침 2.8 × 0.16 × 2.8: 층층 받침 셋(공포를 돌로)
-    s = mat('stone', STONE)
-    for i, (w, z) in enumerate(((2.3, 0.0), (2.55, 0.055), (2.8, 0.11))):
-        box('step', w, w, 0.05, (0, 0, z + 0.025), s, bevel=0.008)
-
-def okgae():  # 옥개석 4.0 × 0.24 × 4.0: 얇고 넓으며 처마 끝이 살짝 들린 지붕돌
-    s = mat('stone', STONE)
-    eave_roof('roof', 2.0, 0.62, 0.075, 0.09, 0.0, 0.24, s)
-    box('ridge', 1.2, 1.2, 0.02, (0, 0, 0.235), s)
-
-def noban():  # 노반 1.1 × 0.3 × 1.1
+def tapsin():  # 2층 이상 몸돌 1.98 × 0.45: 아주 낮은 몸돌을 두 켜로 쌓고 모서리 우주를 둠
     s = mat('stone', STONE); d = mat('stone_dark', DARK)
-    box('base', 1.02, 1.02, 0.22, (0, 0, 0.11), s, bevel=0.02)
-    frustum('cap', 1.1, 0.96, 0.08, 0.22, d, bevel=0.01)
+    h = 0.45; wb = 1.9; wt = 1.86
+    frustum('body', wb, wt, h, 0, s, bevel=0.008)
+    for ix in (-1, 1):
+        for iy in (-1, 1):
+            o = frustum('woo', 0.24, 0.22, h, 0, d, bevel=0.008)
+            o.location = (ix * (0.99 - 0.12), iy * (0.99 - 0.12), 0)
+    for side in range(4):  # 가운데 가로 이음(두 켜)과 세로 이음
+        r = (wb + wt) / 4 + 0.004
+        sx, sy, x, y = [(wb, 0.02, 0, r), (wb, 0.02, 0, -r), (0.02, wb, r, 0), (0.02, wb, -r, 0)][side]
+        box('hseam', sx * 0.9, sy * 0.9 if sy < 1 else sy * 0.9, 0.018, (x, y, h * 0.48), d)
+        box('vseam', 0.025 if side < 2 else 0.02, 0.02 if side < 2 else 0.025, h * 0.46, (0.18 if side % 2 else -0.22, y, h * 0.75) if side < 2 else (x, 0.2 if side % 2 else -0.18, h * 0.75), d)
 
-def bokbal():  # 복발·보주 0.5 × 0.55 × 0.5
+def batchim():  # 옥개받침 1.22w × 0.16: 몸돌 위로 넓어지는 각형 받침 두 단 + 얇은 판(정림사지는 낮고 단정)
     s = mat('stone', STONE)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=0.25, location=(0, 0, 0))
-    o = bpy.context.active_object; o.scale = (1, 1, 0.75); bpy.ops.object.transform_apply(scale=True)
-    bm = bmesh.new(); bm.from_mesh(o.data)
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -1e-4], context='VERTS'); bm.to_mesh(o.data); bm.free()
-    o.data.materials.append(s)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.06, depth=0.12, location=(0, 0, 0.22)); bpy.context.active_object.data.materials.append(s)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=10, radius=0.1, location=(0, 0, 0.45)); bpy.context.active_object.data.materials.append(s)
-    for ob in bpy.context.scene.objects:
-        if ob.type == 'MESH':
-            for p in ob.data.polygons: p.use_smooth = True
+    for (w, z, hh) in ((2.32, 0.0, 0.055), (2.56, 0.055, 0.055), (2.8, 0.11, 0.05)):
+        frustum('step', w - 0.06, w, hh, z, s, bevel=0.006)
+
+def okgae():  # 옥개석 1.63w × 0.24: 얇은 처마, 완만하게 올라가는 낙수면, 귀가 살짝 들림, 위에 두 단 굄
+    s = mat('stone', STONE); d = mat('stone_dark', DARK)
+    eave_roof('roof', 2.0, 0.72, 0.07, 0.03, 0.0, 0.19, s)
+    frustum('goem1', 1.44, 1.4, 0.026, 0.19, d, bevel=0.004)
+    frustum('goem2', 1.32, 1.28, 0.024, 0.216, s, bevel=0.004)
+
+def noban():  # 노반 0.9w × 0.3: 네모난 받침돌
+    s = mat('stone', STONE); d = mat('stone_dark', DARK)
+    box('base', 1.0, 1.0, 0.22, (0, 0, 0.11), s, bevel=0.03)
+    frustum('cap', 1.06, 0.92, 0.08, 0.22, d, bevel=0.012)
+
+def bokbal():  # 꼭대기 0.5 × 0.55: 상륜부는 사라지고 닳은 돌 덩이만 남음(사진처럼 둥그스름하게 닳은 두 덩이)
+    s = mat('stone', STONE)
+    o = box('worn1', 0.5, 0.5, 0.3, (0, 0, 0.15), s, bevel=0.09, segs=4)
+    o = box('worn2', 0.32, 0.3, 0.25, (0.03, -0.02, 0.425), s, bevel=0.08, segs=4)
+    o.rotation_euler = (0.05, -0.08, 0.3)
 
 PARTS = {'jidae': jidae, 'gidan': gidan, 'tapsin1': tapsin1, 'tapsin': tapsin, 'batchim': batchim, 'okgae': okgae, 'noban': noban, 'bokbal': bokbal}
 done = []
