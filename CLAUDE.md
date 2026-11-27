@@ -82,3 +82,10 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 - 학습 기록은 localStorage `baekje-learn`(세션별 시험·확인 질문 답). 상단 "학습 기록"에서 그래프와 JSON 내려받기.
 - 3초 평균 45fps 미만이면 저사양 모드(픽셀 비율 1, 그림자 끔, 물리 1/120초). `?kiosk=1`은 개발용 버튼을 숨기고 90초 무입력 시 첫 화면으로 돌아간다.
 - 플레이어에게 보이는 흔들림 값은 "지진 세기"(게임 내 1.0–7.0)이며 실제 규모·진도가 아니다.
+
+## 블렌더 부재 모델 (정림사지)
+
+- `scripts/blender/jeongnimsa_parts.py`가 정림사지 부재 8종을 만들어 `public/models/*.glb`와 `manifest.json`으로 내보낸다. 실행: `blender -b --factory-startup -P scripts/blender/jeongnimsa_parts.py -- public/models` (한글 경로는 PowerShell에서 실행).
+- `parts.js`의 `loadPartModels()`가 시작할 때 불러오고, `buildPart`는 모델이 있으면 모델을 부재 상자 크기에 맞춰 겉모습으로만 쓴다. 물리·충돌은 그대로 상자. 모델이 없으면 기존 코드 모양.
+- 재료 이름 짝: stone→화강암, stone_dark→어두운 화강암(우주·탱주), wood, red, plaster, green, gold, tile.
+- 미리보기: `preview_jeongnimsa.py -- public/models out.png` (Workbench 렌더). `*-preview.png`·`*-preview.jpg`는 커밋하지 않는다.
