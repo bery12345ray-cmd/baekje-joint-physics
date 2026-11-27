@@ -105,3 +105,7 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 - 대화창(`towerchat.js`): 셋째 마당 "말로 탑 만들기". `/api/build`(server/build.ts, .env.local ANTHROPIC_API_KEY 필요, 개발 서버에서만) → 실패하면 내장 생성기(곰돌이·피라미드·눈사람·로켓·하트·성·N층 탑·탑 이름).
 - 마을 건물: `garam_scene.py`를 `SCENE=village`로 돌리면 `public/models/village/*.glb`. `village.js` `swap()`이 코드 건물의 크기에 맞춰 바꿔 끼운다(재료는 VMAT).
 - 리플렛: 첫째 마당 시작 때 미륵사지, 둘째 마당 들어갈 때 정림사지(한 번씩), 판의 "리플렛" 버튼으로 다시. 관람 안내 면은 없앴다.
+
+## 마당 순서 (2026-11-27 예진)
+
+- 충남이 주제. 첫 화면과 첫째 마당은 정림사지 오층석탑(코드의 stage 2, 기본 시작). 미륵사지 석탑은 확장성을 보여 주는 확장 마당(코드의 stage 1, 둘째로 표시). 셋째 마당은 창작.

@@ -6,7 +6,7 @@ import { buildPart, PART_NAMES, loadPartModels } from './parts.js';
 import { buildVillage, VMAT, resetVillageMats, loadVillageModels } from './village.js';
 import { showLeaflet } from './leaflet.js';
 import { localBuild, askBuild } from './towerchat.js';
-// 탑을 쌓기 전에 그 탑의 안내 리플렛을 한 번 띄운다(첫째 마당 미륵사지 · 둘째 마당 정림사지)
+// 탑을 쌓기 전에 그 탑의 안내 리플렛을 한 번 띄운다(첫 화면·첫째 마당 정림사지 · 확장 마당 미륵사지)
 const stageLeaflet = (force = false) => { if (S.stage !== 3 && !KIOSK_Q) showLeaflet(S.stage === 1 ? 'mireuk' : 'jeong', { once: !force }); };
 const KIOSK_Q = new URLSearchParams(location.search).get('kiosk') === '1';
 
@@ -139,7 +139,7 @@ function heritageHTML() {
 
 
 // ---------- state & records ----------
-const S = { stage: 1, mag: 5, testing: false, tut: { done: 1, kind: 'flex' }, s2: { preset: 'jeong', kind: 'flex', ...HIST },
+const S = { stage: 2, mag: 5, testing: false, tut: { done: 1, kind: 'flex' }, s2: { preset: 'jeong', kind: 'flex', ...HIST },
   sel: { mat: 'granite', shape: 'block' }, rot: 0, design: [], dirty: false, ev: { breaks: 0, joints: 0 }, pre: null, last: null, crit: null };
 let REC = { s1: {}, s2: {}, s3: [] };
 try { REC = { ...REC, ...JSON.parse(localStorage.getItem('baekje-rec') || '{}') }; } catch { /* 저장소 없음 */ }
@@ -765,7 +765,8 @@ function asmBox(extra) {
 function panelHTML() {
   if (S.stage === 1) {
     const k = S.tut.kind, ready = S.tut.done >= TUT.length - 1;
-    return head('첫째 마당 · 학습', '목탑을 닮은 석탑') + photo('mireuk')
+    return head('확장 · 전북 익산', '미륵사지 석탑') + photo('mireuk')
+      + `<p class="note">정림사지 오층석탑에서 익힌 방식을 다른 백제 석탑으로 넓혀 보는 확장 마당입니다. 같은 틀에 설계도만 바꾸면 어느 석탑이든 쌓을 수 있습니다.</p>`
       + asmBox(!ready ? `<button class="btn pat" data-act="autostep" ${dis()}>이 단계 자동으로</button>` : '') + lessonHTML()
       + `<h3>이음 방식</h3>` + seg(Object.entries(JOINT_INFO).map(([id, [n]]) => [id, n]), 'kind', k) + `<p class="note">${JOINT_INFO[k][1]}</p>`
       + `<h3>조립 순서</h3><ol class="steps">${TUT.map(([t, d], i) => `<li class="${i < S.tut.done ? 'done' : i === S.tut.done ? 'now' : ''}"><i>${HAN[i]}</i><span>${t}${i === S.tut.done ? `${i < TUT.length - 1 ? ` <b class="cnt">${stepCount(i)}</b>` : ''}<small>${d}</small>` : ''}</span></li>`).join('')}</ol>`
@@ -776,7 +777,7 @@ function panelHTML() {
   }
   if (S.stage === 2) {
     const s = S.s2, j = true; // 둘째 마당은 석탑만 다룬다(목탑은 첫째 마당)
-    return head('둘째 마당 · 응용', '천년의 석탑') + photo('jeong')
+    return head('첫째 마당 · 충남 부여', '정림사지 오층석탑') + photo('jeong')
       + spirit('검이불루 화이불치', '검소하되 누추하지 않고, 화려하되 사치스럽지 않다. 덜어낼수록 무게중심이 내려앉습니다.')
       + spirit('나무의 집을 돌로 옮긴 탑', '정림사지 오층석탑은 목조건축 양식을 돌로 옮겨 지었습니다. 모서리 기둥(우주)은 배흘림 나무 기둥을, 옥개받침은 처마를 받치는 공포를, 얇고 넓으며 끝이 살짝 들린 옥개석은 기와지붕을 닮았습니다.')
       + asmBox(`<button class="btn pat" data-act="autoall" ${dis()}>남은 부재 자동으로</button>`) + lessonHTML()
@@ -942,7 +943,7 @@ function sampleDesign() {
 // ---------- 학습 기록: 지진 시험마다 남기고(localStorage), 시험 전·3번째 시험 후 같은 질문을 묻는다 ----------
 const KIOSK = new URLSearchParams(location.search).get('kiosk') === '1';
 document.body.classList.toggle('kiosk', KIOSK);
-const STAGE_NAME = { 1: '목탑을 닮은 석탑', 2: '천년의 석탑', 3: '나만의 백제 탑' };
+const STAGE_NAME = { 2: '정림사지 오층석탑', 1: '확장 · 미륵사지 석탑', 3: '나만의 백제 탑' };
 const QUIZ = {
   q: '탑을 지진에 더 강하게 만들려면?',
   choices: [
@@ -1106,7 +1107,7 @@ function showTitle() { titleEl.hidden = false; titleEl.querySelector('button').f
 titleEl.addEventListener('click', () => { titleEl.hidden = true; lastInput = performance.now(); });
 function kioskReset() {
   closeSheet();
-  Object.assign(S, { stage: 1, mag: 5, testing: false, tut: { done: 1, kind: 'flex' }, s2: { preset: 'jeong', kind: 'flex', ...HIST },
+  Object.assign(S, { stage: 2, mag: 5, testing: false, tut: { done: 1, kind: 'flex' }, s2: { preset: 'jeong', kind: 'flex', ...HIST },
     sel: { mat: 'granite', shape: 'block' }, rot: 0, design: [], dirty: false, pick: false, last: null, crit: null });
   resetAsm(1); resetAsm(2); history.replaceState(null, '', location.pathname + location.search);
   camera.position.set(12, 8.5, 14); controls.target.set(0, 3.2, 0);
