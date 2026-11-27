@@ -4,6 +4,8 @@
 // 연결 정보가 없거나 실패하면 이 기기 최고 기록만 보여 준다.
 import CFG from './board-config.js';
 import { DISASTERS, DKEYS } from './disasters.js';
+import { LEVELS, level } from './levels.js';
+const lvName = n => n >= 1 && n <= 5 ? `LV.0${n} ${LEVELS[n - 1].name}` : '';
 
 const NICK_KEY = 'baekje-nick';
 const STAGE_NAME = { 1: '미륵사지', 2: '정림사지', 3: '창작' };
@@ -31,8 +33,8 @@ boardEl.addEventListener('submit', e => {
   e.preventDefault();
   const n = e.target.nick.value.trim(), bad = nickProblem(n);
   if (bad) { B.msg = bad; return draw(); }
-  setNick(n); B.msg = `닉네임을 "${n}"(으)로 정했어요`;
-  if (B.pending) { const p = B.pending; B.pending = null; submitScore(p.stage, p.score, p.disaster); }
+  setNick(n); B.msg = `닉네임을 "${n}"(으)로 정했어요`; document.dispatchEvent(new CustomEvent('baekje-nick'));
+  if (B.pending) { const p = B.pending; B.pending = null; submitScore(p.stage, p.score, p.disaster, p.lv); }
   draw();
 });
 
@@ -74,15 +76,15 @@ async function fetchTop(stage) {
 }
 
 // 지진 시험(점수)이 끝나면 부른다. 닉네임이 없으면 정할 때까지 기다렸다 올린다.
-export async function submitScore(stage, score, disaster = 'quake') {
+export async function submitScore(stage, score, disaster = 'quake', lv = 1) {
   score = Math.round(Math.min(7, Math.max(1, score)) * 100) / 100;
   if (B.status === 'off') return draw();
   const nick = getNick();
-  if (!nick || nickProblem(nick)) { B.pending = { stage, score, disaster }; B.msg = `점수 ${score.toFixed(2)} · 닉네임을 정하면 순위에 올라가요`; return draw(); }
+  if (!nick || nickProblem(nick)) { B.pending = { stage, score, disaster, lv }; B.msg = `점수 ${score.toFixed(2)} · 닉네임을 정하면 순위에 올라가요`; return draw(); }
   const sb = await client(); if (!sb) return draw();
   try {
     if (!(await sb.auth.getSession()).data.session) { const r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; }
-    const { error } = await sb.from('scores').insert({ nickname: nick, stage, disaster, score });
+    const { error } = await sb.from('scores').insert({ nickname: nick, stage, disaster, score, level: Math.min(5, Math.max(1, lv | 0)) });
     if (error) throw error;
     B.msg = `${STAGE_NAME[stage]} · ${DISASTERS[disaster].name} 순위에 ${score.toFixed(2)}점을 올렸어요`; B.dis = disaster;
   } catch (err) {
@@ -97,9 +99,9 @@ function draw() {
   const nick = getNick(), rows = B.rows[rk()] || [], on = B.status === 'on';
   const local = B.localBest(B.stage, B.dis);
   const list = on && rows.length
-    ? `<ol class="bd-list">${rows.map((r, i) => `<li class="${r.nickname === nick ? 'me' : ''}"><i>${i + 1}</i><span>${esc(r.nickname)}</span><b>${Number(r.score).toFixed(2)}</b></li>`).join('')}</ol>`
+    ? `<ol class="bd-list">${rows.map((r, i) => `<li class="${r.nickname === nick ? 'me' : ''}"><i>${i + 1}</i><span>${esc(r.nickname)}${r.level ? `<em class="bd-lv">${lvName(r.level)}</em>` : ''}</span><b>${Number(r.score).toFixed(2)}</b></li>`).join('')}</ol>`
     : on ? '<p class="note">아직 이 마당 순위가 비어 있어요. 첫 기록의 주인공이 되어 보세요.</p>'
-    : `<p class="note">${B.status === 'connecting' ? '온라인 순위에 연결하는 중…' : '온라인 순위에 연결되지 않아 이 기기 최고 기록만 보여요.'}</p>${local ? `<div class="bd-local"><span>이 기기 최고 · ${DISASTERS[B.dis].name}</span><b>${local.toFixed(2)}</b></div>` : ''}`;
+    : `<p class="note">${B.status === 'connecting' ? '온라인 순위에 연결하는 중…' : '온라인 순위에 연결되지 않아 이 기기 최고 기록만 보여요.'}</p>${local ? `<div class="bd-local"><span>이 기기 최고 · ${DISASTERS[B.dis].name}${level() ? `<em class="bd-lv">${esc(nick || '나')} · ${lvName(level())}</em>` : ''}</span><b>${local.toFixed(2)}</b></div>` : ''}`;
   const focused = document.activeElement && document.activeElement.id === 'nickIn';
   const typed = focused ? document.activeElement.value : null;
   boardEl.innerHTML = `<div class="bd-head"><h3>온라인 순위 · ${STAGE_NAME[B.stage]}</h3>${on ? `<span class="bd-on" title="지금 접속 중인 사람"><i aria-hidden="true"></i>${B.online || 1}명 접속 중</span>` : ''}</div>

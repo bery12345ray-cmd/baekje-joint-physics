@@ -8,16 +8,21 @@ create table if not exists public.scores (
   nickname    text        not null,
   stage       smallint    not null,
   disaster    text        not null default 'quake',
+  level       smallint    not null default 1,
   score       numeric(4,2) not null,
   created_at  timestamptz not null default now(),
   constraint scores_stage_ck    check (stage in (1, 2, 3)),
   constraint scores_dis_ck      check (disaster in ('quake', 'wind', 'storm', 'flood', 'snow')),
+  constraint scores_level_ck    check (level between 1 and 5),
   constraint scores_score_ck    check (score >= 1.00 and score <= 7.00),
   constraint scores_nick_len_ck check (char_length(nickname) between 2 and 12),
   constraint scores_nick_chr_ck check (nickname ~ '^[가-힣A-Za-z0-9_ .-]+$' and nickname = btrim(nickname))
 );
 create index if not exists scores_stage_score_idx on public.scores (stage, disaster, score desc);
 create index if not exists scores_user_time_idx  on public.scores (user_id, created_at desc);
+-- 이미 만든 표에 칭호 칸 더하기(처음 만들 때는 위 create table에 들어 있다)
+alter table public.scores add column if not exists level smallint not null default 1;
+do $$ begin alter table public.scores add constraint scores_level_ck check (level between 1 and 5); exception when duplicate_object then null; end $$;
 
 -- 기본 욕설 목록(필요하면 insert로 더 넣는다). 클라이언트는 이 표를 읽을 수 없다.
 create table if not exists public.banned_words (word text primary key);
@@ -62,11 +67,13 @@ revoke update, delete, truncate on public.scores from anon, authenticated;
 
 -- 마당·재해별 순위: 닉네임마다 최고 점수 하나, 같은 점수면 먼저 낸 사람이 위
 drop function if exists public.top_scores(smallint, int);
+drop function if exists public.top_scores(smallint, text, int);
 create or replace function public.top_scores(p_stage smallint, p_disaster text default 'quake', p_limit int default 10)
-returns table (nickname text, score numeric, created_at timestamptz)
+returns table (nickname text, score numeric, created_at timestamptz, level smallint)
 language sql stable security invoker set search_path = public as $$
-  select nickname, score, created_at from (
-    select distinct on (s.nickname) s.nickname, s.score, s.created_at
+  select nickname, score, created_at, level from (
+    select distinct on (s.nickname) s.nickname, s.score, s.created_at,
+      (select max(x.level) from public.scores x where x.nickname = s.nickname)::smallint as level
     from public.scores s where s.stage = p_stage and s.disaster = p_disaster
     order by s.nickname, s.score desc, s.created_at asc
   ) best
@@ -79,3 +86,4 @@ grant execute on function public.top_scores(smallint, text, int) to anon, authen
 do $$ begin
   alter publication supabase_realtime add table public.scores;
 exception when duplicate_object then null; end $$;
+

@@ -7,7 +7,8 @@ import { buildVillage, VMAT, resetVillageMats, loadVillageModels } from './villa
 import { showLeaflet, leafletOpen } from './leaflet.js';
 import { localBuild, askBuild } from './towerchat.js';
 import { startGuide, guideSeen } from './guide.js';
-import { boardEl, showBoard, submitScore } from './board.js';
+import { recordScore, showLevelUp, titlesHTML, pagodaIcon, badgeText, level, LEVELS } from './levels.js';
+import { boardEl, showBoard, submitScore, getNick } from './board.js';
 import { DISASTERS, DKEYS, caption } from './disasters.js';
 import { makeWeather, snowify } from './weather.js';
 const DEBUG = new URLSearchParams(location.search).get('debug') === '1'; // ?debug=1: FPS 표시(시험용)
@@ -360,7 +361,12 @@ function finishTest() {
     if (S.stage === 1) { const k = `${kind}|${S.tut.kind}`; REC.s1[k] = Math.max(REC.s1[k] || 0, rec); }
     if (S.stage === 2) REC.s2[kind] = Math.max(REC.s2[kind] || 0, rec);
   }
-  if (score != null && S.stage !== 3) submitScore(S.stage, score, kind); // 온라인 순위(연결 없으면 이 기기 기록만)
+  if (score != null && S.stage !== 3) {
+    const A = asm(), acc = A.plan.length ? A.placed.filter(p => p.snap).length / A.plan.length : 1;
+    const r = recordScore(kind, score, S.pre, acc); S.last.years = r.years; S.last.eligible = r.eligible; S.last.skilled = r.skilled; S.last.acc = acc; // 버틴 햇수·칭호(levels.js)
+    if (r.up) setTimeout(() => showLevelUp(r.up), 1200);
+    submitScore(S.stage, score, kind, Math.max(1, level())); // 온라인 순위(연결 없으면 이 기기 기록만)
+  }
   const ev = evidence(S.pre, S.last, S.ev, S.preEv || { breaks: 0 }), diag = diagnose(S.pre, S.last, ev);
   recordTrial(S.pre, S.last, diag);
   if (S.stage === 3) {
@@ -665,15 +671,17 @@ function dockHTML() {
   // 첫째·확장 마당: 부재를 모두 놓아야 재해 시험이 열린다. 창작 마당(정해진 부재 수 없음): 하나라도 놓으면.
   const A = S.stage !== 3 && asm(), left = A ? A.plan.length - A.placed.length : 0;
   const lockMsg = S.stage !== 3 ? (left > 0 ? `모든 부재를 놓으면 재해 시험을 할 수 있어요 · 남은 부재 ${left}개` : '') : !S.design.length ? '부재를 하나라도 놓으면 재해 시험을 할 수 있어요' : '';
+  if (S.stage !== 3 && left > 0 && !S.testing) return swapIn('asm', asmDock());
   if (lockMsg && !S.testing) return `<div class="locked">${LOCK_SVG}${lockMsg}</div>`;
   const Lr = S.last, D = DISASTERS[S.disaster], ld = Lr && DISASTERS[Lr.kind || 'quake'].name;
   const why = Lr && (Lr.reason === 'top' ? ' · 꼭대기 돌이 떨어졌어요' : Lr.reason === 'pieces' ? ' · 돌 두 개 이상이 빠졌어요' : ' · 탑의 많은 부분이 쓰러졌어요');
   const head = Lr && (Lr.collapsed ? `${ld} 세기 <b>${Lr.collapseMag.toFixed(2)}</b>에서 무너지기 시작했어요${why}` : Lr.score != null ? `${ld} 세기 <b>${Lr.score.toFixed(2)}</b>까지 모두 버텼어요! 만점` : `${ld} 시험을 멈췄어요`);
-  const L = Lr && !S.testing ? `<p class="result">${head}${Lr.score != null ? ` · <span class="score">점수 <b>${Lr.score.toFixed(2)}</b></span>` : ''}${S.ev.breaks ? ` · 부러진 목재 ${Math.ceil(S.ev.breaks)}` : ''}${S.ev.joints ? ` · 풀린 결구 ${S.ev.joints}` : ''}</p>` : '';
+  const yrs = Lr && Lr.years != null ? `<span class="years">이 탑은 <b>${Lr.years.toLocaleString('ko-KR')}년</b>을 버텼습니다${!Lr.eligible ? ' · 칭호 기준(높이·부재 수)에 못 미쳐 칭호에는 세지 않아요' : !Lr.skilled ? ` · 정위치 맞춤 ${Math.round(Lr.acc * 100)}%라 백제 장인부터의 칭호에는 세지 않아요(75% 이상)` : ''}</span>` : '';
+  const L = Lr && !S.testing ? `<p class="result">${yrs}${head}${Lr.score != null ? ` · <span class="score">점수 <b>${Lr.score.toFixed(2)}</b></span>` : ''}${S.ev.breaks ? ` · 부러진 목재 ${Math.ceil(S.ev.breaks)}` : ''}${S.ev.joints ? ` · 풀린 결구 ${S.ev.joints}` : ''}</p>` : '';
   const live = S.testing ? `<p class="live" aria-live="off">${D.name} 시험 중 · 세기 <b id="liveMag">${(sim.mag || 0).toFixed(2)}</b></p>` : '';
   const rec = D.record ? `<a href="${D.record.url}" target="_blank" rel="noopener">${D.record.when}, ${D.record.text}</a> <small>삼국사기 백제본기</small>` : '<small>게임 연출</small>';
   const tg = `<button class="dock-tg" data-act="dock" aria-expanded="${dockOpen}" aria-controls="magBody">${dockOpen ? '접기' : '펼치기'}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="${dockOpen ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}"/></svg></button>`;
-  return `<div class="dock-in">
+  return swapIn('test', `<div class="dock-in">
     <div class="mag${dockOpen ? '' : ' closed'}">
       <div class="dock-h"><b id="magTtl">재해 고르기 <span class="dsel">${D.name}</span></b>${tg}</div>
       <div id="magBody" ${dockOpen ? '' : 'hidden'}>
@@ -686,8 +694,11 @@ function dockHTML() {
     <div class="acts">
       ${S.testing ? '<button class="btn line" data-act="stop">시험 멈추기</button>'
         : `<button class="btn red" data-act="ramp">${D.name} 시험<small>세기 ${RAMP.FROM.toFixed(2)}→${RAMP.TO.toFixed(2)} · 무너진 세기가 점수</small></button>${S.dirty ? '<button class="btn pat" data-act="rebuild">다시 세우기</button>' : ''}`}
-    </div></div>`;
+    </div></div>`);
 }
+// 조립 정보 ↔ 재해 시험이 바뀌는 순간에만 짧게 나타나기(약 200ms)
+let dockMode = null;
+function swapIn(mode, html) { const anim = dockMode && dockMode !== mode; dockMode = mode; return anim ? html.replace(/^<div class="([^"]+)"/, '<div class="$1 swap-in"') : html; }
 function toolsHTML() {
   if (S.stage !== 3) return '';
   return `<span class="tl">자재</span>${Object.keys(MATERIALS).map(id => `<button class="tbtn mat" data-mat="${id}" aria-pressed="${S.sel.mat === id}" title="${MAT_INFO[id].note}"><i style="background:${MAT_INFO[id].sw}"></i>${MATERIALS[id].name}</button>`).join('')}
@@ -751,14 +762,15 @@ function nextHTML() {
   return `<span class="tl">지금 들고 있는 부재</span>${card(A.plan[n], true)}${A.plan.length > n + 1 ? `<span class="tl">다음</span>${A.plan.slice(n + 1, n + 4).map(it => card(it, false)).join('')}` : ''}<p class="nx-left">남은 부재 ${A.plan.length - n}개</p>`;
 }
 function stepCount(step) { const A = S.asm1, all = A.plan.filter(p => p.step === step).length, done = A.placed.filter((_, i) => A.plan[i].step === step).length; return `${done}/${all}`; }
-function asmBox(extra) {
+// 조립 정보: 부재를 다 놓기 전까지 재해 시험 자리(#dock)에 보인다. 놓을 때마다 render()가 다시 그려 바로 바뀐다.
+function asmDock() {
   const A = asm(), it = held(), ok = A.placed.filter(p => p.snap).length;
-  const last = A.lastSnap == null ? '' : A.lastSnap ? '<span class="ok">맞춤! 결구가 이어졌습니다</span>' : '<span class="miss">빗나감. 결구 없이 그 자리에 놓였습니다</span>';
-  return `<div class="asm">
-    <div class="asm-top"><span>놓은 부재 <b>${A.placed.length}</b> / ${A.plan.length}</span><span>정위치 맞춤 <b>${ok}</b></span></div>
-    ${it ? `<p class="holding">들고 있는 부재 <b>${it.name}</b> · ${MATERIALS[it.mat].name}</p>${it.part && PART_INFO[it.part] ? `<p class="tech">${PART_INFO[it.part]}</p>` : ''}<p class="note">누른 채 끌어 제자리라고 생각하는 곳에서 손을 떼세요. 안내선은 없습니다. 아래 부재와 가운데를 맞추고, 정확히 맞으면 결구가 이어집니다.</p>` : `<p class="holding">모든 부재를 놓았습니다</p>`}
-    ${last}
-    <div class="row">${it ? extra : ''}<button class="btn line" data-act="undo" ${A.placed.length && !S.testing ? '' : 'disabled'}>하나 되돌리기</button></div></div>`;
+  const miss = A.lastSnap === false ? '<span class="miss">빗나감. 결구 없이 그 자리에 놓였습니다</span>' : '';
+  const auto = S.stage === 1 ? (S.tut.done < TUT.length - 1 ? `<button class="btn line" data-act="autostep" ${dis()}>이 단계 자동으로</button>` : '') : `<button class="btn line" data-act="autoall" ${dis()}>남은 부재 자동으로</button>`;
+  return `<div class="asm-dock" aria-live="polite">
+    <div class="asm-top"><span>놓은 부재 <b>${A.placed.length}</b> / ${A.plan.length}</span><span>정위치 맞춤 <b>${ok}</b></span>${miss}</div>
+    ${it ? `<p class="holding">들고 있는 부재 <b>${it.name}</b> · ${MATERIALS[it.mat].name}</p>${it.part && PART_INFO[it.part] ? `<p class="tech">${PART_INFO[it.part]}</p>` : ''}` : ''}
+    <div class="row">${auto}</div></div>`;
 }
 function panelHTML() {
   if (S.stage === 1) {
@@ -766,7 +778,6 @@ function panelHTML() {
     return head('확장 마당 · 전북 익산', '미륵사지 석탑') + photo('mireuk')
       + `<p class="lead">정림사지에서 배운 쌓기 방법을 다른 백제 석탑에도 써 보는 <b>확장 마당</b>이에요.</p>`
       + facts([['어디', '전북 익산 미륵사지'], ['언제', '639년, 백제 무왕 때'], ['특징', '우리나라에서 가장 오래되고 가장 큰 석탑'], ['남은 층', '6층 (원래 9층으로 봐요)'], ['문화유산', '국보']])
-      + asmBox(!ready ? `<button class="btn pat" data-act="autostep" ${dis()}>이 단계 자동으로</button>` : '')
       + `<h3>쌓는 순서</h3><ol class="steps">${TUT.map(([t, d], i) => `<li class="${i < S.tut.done ? 'done' : i === S.tut.done ? 'now' : ''}"><i>${i + 1}</i><span>${t}${i === S.tut.done ? `${i < TUT.length - 1 ? ` <b class="cnt">${stepCount(i)}</b>` : ''}<small>${d}</small>` : ''}</span></li>`).join('')}</ol>`
       + `<h3>돌을 어떻게 이을까?</h3>` + seg(Object.entries(JOINT_INFO).map(([id, [n]]) => [id, n]), 'kind', k) + `<p class="note">${JOINT_INFO[k][1]}</p>`
       + tips('알아 두면 좋아요', ['나무로 짓던 탑을 돌로 그대로 옮겼어요. 그래서 돌기둥, 문, 지붕 모양이 나무 건물을 닮았어요.', '2009년 탑 한가운데 돌(심주석)에서 "639년에 세웠다"는 금판 기록이 나왔어요.', '무너질 위험이 있어 2001년부터 해체해 고치고, 2019년에 다시 세웠어요.'])
@@ -778,7 +789,6 @@ function panelHTML() {
     const era = S.era || 'baekje';
     return head('첫째 마당 · 충남 부여', '정림사지 오층석탑') + photo('jeong')
       + facts([['어디', '충남 부여 정림사지'], ['언제', '백제 사비 시대(600년대 무렵)'], ['재료', '화강암 149개를 짜 맞춤'], ['높이', '약 8.3m (아파트 3층쯤)'], ['문화유산', '국보']])
-      + asmBox(`<button class="btn pat" data-act="autoall" ${dis()}>남은 부재 자동으로</button>`)
       + tips('왜 1,400년을 버텼을까?', ['<b>나무 탑을 돌로</b> 옮겼어요. 모서리 기둥은 나무 기둥, 얇은 지붕돌은 기와지붕을 닮았어요.', '<b>지붕돌이 얇고 넓어서</b> 위가 가볍고, 무게중심이 아래에 있어요.', '<b>위로 갈수록 조금씩 작아져서</b> 흔들려도 쓰러지지 않아요.'])
       + `<div class="spirit"><b>검이불루 화이불치</b><p>검소하지만 초라하지 않고, 화려하지만 지나치지 않다.<br>백제 사람들이 아름답다고 여긴 기준이에요. 이 탑도 꼭 필요한 만큼만 쌓아서 단단해요.</p></div>`
       + `<h3>정림사지 둘러보기</h3>${seg([['baekje', '백제 때'], ['today', '오늘날'], ['future', '미래 복원']], 'era', era)}<p class="note">${era === 'future' ? '정림사지박물관의 복원 계획을 참고해 중문·회랑·2층 금당·강당·승방을 다시 세워 봤어요. 게임 속 모습이라 실제 설계와 다를 수 있어요.' : era === 'today' ? '지금은 금당과 회랑 자리에 터만 남았어요. 강당 자리에는 석조여래좌상을 모신 건물(1993)이 있고, 가까이에 정림사지박물관(2006)이 있어요.' : '남쪽부터 중문 → 석탑 → 금당 → 강당이 한 줄로 서 있었어요. 둘레를 회랑(지붕 덮인 복도)이 감쌌고, 중문 앞에 연못 두 개가 있었어요.'}</p>`
@@ -848,7 +858,7 @@ function render() {
   $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : it ? `${it.name}을(를) 끌어 제자리에서 떼면 놓입니다 · 오른쪽 드래그: 돌려 보기 · R: 처음부터` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · T: 돌리기 · 오른쪽 드래그: 돌려 보기') : '왼쪽 드래그: 지도 옮기기 · 오른쪽 드래그: 돌려 보기 · 휠: 확대 · R: 처음부터';
   showTarget(); syncControls();
   { const can = !S.testing && (S.stage === 3 ? S.design.length > 0 : asm().placed.length > 0); const q = $("#quickUndo"); q.disabled = !can; q.hidden = S.stage !== 3 && !asm().placed.length && !S.testing; }
-  document.querySelectorAll('#tabs a').forEach(b => b.setAttribute('aria-current', b.dataset.stage == S.stage ? 'step' : 'false'));
+  syncHeader();
   panel.innerHTML = panelHTML();
   const slot = panel.querySelector('#boardSlot'); if (slot) { slot.replaceWith(boardEl); showBoard(S.stage, localBest, S.disaster); } // 순위판은 다시 그리지 않고 옮겨 붙인다(입력 중인 닉네임 유지)
   $('#dock').innerHTML = dockHTML();
@@ -898,11 +908,23 @@ ui.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.p) { if (t.type === 'checkbox') S.s2.ornament = t.checked; S.last = null; resetAsm(2); rebuild(); render(); }
 });
-$('#tabs').addEventListener('click', e => {
-  const b = e.target.closest('a'); if (!b) return;
-  e.preventDefault(); if (S.testing) return;
-  S.stage = +b.dataset.stage; S.last = null; location.hash = 'stage' + S.stage; rebuild(); render(); stageLeaflet();
-});
+function goStage(n) { if (S.testing || n === S.stage) return syncHeader(); S.stage = n; S.last = null; location.hash = 'stage' + S.stage; rebuild(); render(); stageLeaflet(); }
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-stage]'); if (b) goStage(+b.dataset.stage); });
+$('#stageSel').addEventListener('change', e => goStage(+e.target.value));
+// 머리띠 오른쪽: 칭호 배지(다섯 층 탑 아이콘이 레벨만큼 채워진다)·닉네임·순위·학습 기록·안내. 좁은 화면은 메뉴 단추로 연다.
+function syncHeader() {
+  document.querySelectorAll('#tabs [data-stage]').forEach(b => { const n = +b.dataset.stage; b.setAttribute('aria-current', n === S.stage ? 'step' : 'false'); b.classList.toggle('done', Object.keys(n === 1 ? REC.s1 : REC.s2).length > 0); });
+  const sel = $('#stageSel'); if (+sel.value !== S.stage) sel.value = String(S.stage);
+  const lv = level(); $('#lvIco').innerHTML = pagodaIcon(lv, 22); $('#lvTxt').textContent = badgeText(lv); $('#hdr-r .hd-badge').dataset.lv = lv;
+  const nk = getNick(); $('#nickTxt').textContent = nk || '닉네임 정하기'; $('#hdr-r .hd-nick').classList.toggle('empty', !nk);
+}
+document.addEventListener('baekje-nick', syncHeader);
+document.addEventListener('lv-titles', () => openSheet('titles'));
+const hdMenu = $('#hdMenu'), hdR = $('#hdr-r');
+const setMenu = on => { hdR.classList.toggle('open', on); hdMenu.setAttribute('aria-expanded', on); };
+hdMenu.addEventListener('click', () => setMenu(!hdR.classList.contains('open')));
+addEventListener('click', e => { if (hdR.classList.contains('open') && !e.target.closest('#hdr-r, #hdMenu')) setMenu(false); });
+function focusBoard(nick) { const n = $('#nickIn'), bd = $('#board'); if (!bd) return; bd.scrollIntoView({ block: 'center', behavior: 'smooth' }); if (nick && n) setTimeout(() => n.focus({ preventScroll: true }), 350); }
 
 // 돌 기단 + 나무 몸체 + 벽돌 상층: the "백제 장인" recipe, so the sandbox opens mid-use
 // 충청 지역 국가유산 탑을 실제 부재로 쌓은 예시(셋째 마당). 설계도 부재를 셋째 마당 부재로 옮긴다.
@@ -1025,7 +1047,7 @@ let sheetKind = null, sheetAfter = null, sheetFocus = null;
 function openSheet(kind, after) {
   if (!sheetKind) sheetFocus = document.activeElement;
   sheetKind = kind; sheetAfter = after || null;
-  sheetIn.innerHTML = kind === 'learn' ? learnHTML() : kind === 'why' ? whyHTML() : quizHTML(kind === 'quiz-pre' ? 'pre' : 'post');
+  sheetIn.innerHTML = kind === 'learn' ? learnHTML() : kind === 'titles' ? titlesHTML(DEBUG) : kind === 'why' ? whyHTML() : quizHTML(kind === 'quiz-pre' ? 'pre' : 'post');
   breakSentences(sheetIn);
   sheet.hidden = false; sheetIn.focus();
 }
@@ -1038,6 +1060,7 @@ sheet.addEventListener('click', e => {
   if (e.target === sheet) return closeSheet();
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.x === 'close') closeSheet();
+  if (b.dataset.lvprev) { closeSheet(); showLevelUp(LEVELS[+b.dataset.lvprev - 1]); } // ?debug=1 미리보기
   if (b.dataset.x === 'download') downloadLearn();
   if (b.dataset.quiz) {
     const pre = sheetKind === 'quiz-pre', after = sheetAfter;
@@ -1078,11 +1101,14 @@ let noticeT;
 function notice(text) { const n = $('#notice'); n.textContent = text; n.classList.add('show'); clearTimeout(noticeT); noticeT = setTimeout(() => n.classList.remove('show'), 6000); }
 function syncXbar() { fpsEl.hidden = !FPS.show; }
 if (DEBUG) { fpsEl.textContent = '측정 중…'; syncXbar(); }
-$('#xbar').addEventListener('click', e => {
+hdR.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  const x = b.dataset.x;
+  const x = b.dataset.x; setMenu(false);
   if (x === 'learn') openSheet('learn');
   if (x === 'guide') startGuide({ force: true });
+  if (x === 'titles') openSheet('titles');
+  if (x === 'board') focusBoard(false);
+  if (x === 'nick') focusBoard(true);
 });
 // 키오스크: 90초 동안 입력이 없으면 첫 화면으로
 const titleEl = $('#title');
@@ -1200,6 +1226,6 @@ try {
   if (!KIOSK && !guideSeen() && new URLSearchParams(location.search).get('guide') !== '0') {
     const wait = setInterval(() => { if (!leafletOpen() && !sheetKind) { clearInterval(wait); setTimeout(() => startGuide(), 400); } }, 300);
   }
-  window.__game = { S, sim, asm, autoPlace, render, FPS, PERF, setPerf, renderer, scene, camera, controls, resetStage, WX, proj: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
+  window.__game = { S, sim, asm, autoPlace, placePiece, rebuild, startTest, render, FPS, PERF, setPerf, renderer, scene, camera, controls, resetStage, WX, proj: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 } catch (err) { console.error(err); $('#err').style.display = 'grid'; }
 setTimeout(() => syncVillage(true), 0); // 시작할 때 마을을 세운다
