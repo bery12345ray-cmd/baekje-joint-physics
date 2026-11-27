@@ -7,6 +7,7 @@ export const NPC = { guide: 'npc/seokgong-guide.webp', panic: 'npc/seokgong-pani
 export const NPC_SIZE = { guide: [359, 660], panic: [236, 498], celebrate: [379, 637] };
 for (const src of Object.values(NPC)) { const i = new Image(); i.decoding = 'async'; i.src = src; } // 미리 받아 두어 자세를 바꿀 때 깜빡이지 않게
 const ALT = { guide: '두루마리를 들고 손으로 가리키는 꼬마 석공', panic: '두 주먹을 쥐고 놀란 꼬마 석공', celebrate: '망치를 들고 만세하는 꼬마 석공' };
+import { sentText } from './prose.js';
 const DROPS = '<i class="npc-drop d1" aria-hidden="true"></i><i class="npc-drop d2" aria-hidden="true"></i>';
 // 그림 하나(크기는 CSS가 높이로 정한다)
 export const npcImg = (pose = 'guide', cls = '') => `<span class="npc-wrap ${cls} pose-${pose}"><img class="npc" src="${NPC[pose]}" width="${NPC_SIZE[pose][0]}" height="${NPC_SIZE[pose][1]}" alt="${ALT[pose]}" decoding="async">${DROPS}</span>`;
@@ -32,7 +33,7 @@ function ensure() {
 export function companion(pose, text, { stay = 7000 } = {}) {
   const e = ensure(), wrap = e.querySelector('.npc-wrap'), img = e.querySelector('img'), prev = e.dataset.pose;
   clearTimeout(hideT);
-  const say = e.querySelector('.npc-say'); if (say.textContent !== text) { say.textContent = text; say.classList.remove('in'); void say.offsetWidth; say.classList.add('in'); }
+  const say = e.querySelector('.npc-say'); if (say.dataset.t !== text) { say.dataset.t = text; say.innerHTML = sentText(text); say.classList.remove('in'); void say.offsetWidth; say.classList.add('in'); }
   if (prev !== pose) { img.src = NPC[pose]; img.alt = ALT[pose]; img.width = NPC_SIZE[pose][0]; img.height = NPC_SIZE[pose][1]; }
   wrap.className = `npc-wrap pose-${pose}`; e.dataset.pose = pose;
   // 바뀔 때만 한 번 움직임: panic은 흔들기, celebrate는 톡 튀어나오기

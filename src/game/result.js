@@ -1,7 +1,13 @@
 // 재해 시험 결과 창(목업 04): 버틴 햇수, 1,400년 막대, 진단 근거, 석공 비평, 다른 재해로 시험·다시 쌓기·순위판, 그리고 인증샷 공유.
 // 창이 열리면 body.modal(머리띠가 한 줄 막대로 바뀐다). 닫으면 onClose(칭호가 올랐으면 그다음 칭호 오름 창).
 import { npcImg } from './npc.js';
-import { makeCard, shareCard, toBlob } from './share.js';
+import { sentHTML, sentText } from './prose.js';
+import { makeCard, shareCard, toBlob, GAME_URL } from './share.js';
+import qrcode from 'qrcode-generator';
+// 키오스크(?kiosk=1): 전시장 기계에서 카카오톡·인스타그램 공유나 이미지 저장은 쓸모가 없어, 게임 주소 QR을 보여 준다(휴대폰으로 찍어 이어서 하기)
+const isKiosk = () => document.body.classList.contains('kiosk');
+function qrImg(px = 132) { const q = qrcode(0, 'M'); q.addData(GAME_URL); q.make(); return `<img class="sh-qr" src="${q.createDataURL(6, 2)}" width="${px}" height="${px}" alt="게임 주소 QR 코드">`; }
+const KIOSK_QR = () => `<div class="sh-kiosk">${qrImg()}<p>${sentText('휴대폰 카메라로 QR을 찍어 보세요. 내 휴대폰에서 이어서 쌓고 인증샷도 공유할 수 있어요.')}</p></div>`;
 import { DISASTERS } from './disasters.js';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -27,7 +33,7 @@ export function showResult(r) {
       </div>
       <div class="rs-grid">
         <section class="rs-box"><h4>진단 근거</h4><dl>${r.rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl></section>
-        <section class="rs-box"><h4>석공 비평 <span class="rs-tag">${esc(r.crit.tag)}</span></h4><p class="rs-quote">${r.crit.html}</p><p class="rs-note">${esc(r.crit.note)}</p></section>
+        <section class="rs-box"><h4>석공 비평 <span class="rs-tag">${esc(r.crit.tag)}</span></h4><p class="rs-quote">${sentHTML(r.crit.html)}</p><p class="rs-note">${esc(r.crit.note)}</p></section>
       </div>
       <div class="rs-btns">
         <div>${r.others.map(k => `<button class="btn" data-rs="retest" data-k="${k}">${dIcon(k)}${DISASTERS[k].name}${ro(DISASTERS[k].name)} 시험</button>`).join('')}</div>
@@ -36,8 +42,8 @@ export function showResult(r) {
       </div>
       <section class="rs-share" aria-label="인증샷 공유">
         <button class="sh-thumb" data-rs="preview" aria-label="인증샷 크게 보기" title="인증샷 크게 보기"></button>
-        <div><h4>내 탑 인증샷 공유</h4><p>내가 쌓은 탑 네 컷에 꼬마 석공이 함께 찍혔어요. 카카오톡이나 인스타그램으로 자랑해 보세요.</p>
-          <div class="sh-btns"><button class="btn kakao" data-share="kakao">${KAKAO}카카오톡 공유</button><button class="btn insta" data-share="insta">${INSTA}인스타그램 공유</button><button class="btn" data-share="save">${SAVE}이미지 저장</button></div>
+        <div><h4>내 탑 인증샷${isKiosk() ? '' : ' 공유'}</h4>${isKiosk() ? KIOSK_QR() : `<p>${sentText('내가 쌓은 탑 네 컷에 꼬마 석공이 함께 찍혔어요. 카카오톡이나 인스타그램으로 자랑해 보세요.')}</p>
+          <div class="sh-btns"><button class="btn kakao" data-share="kakao">${KAKAO}카카오톡 공유</button><button class="btn insta" data-share="insta">${INSTA}인스타그램 공유</button><button class="btn" data-share="save">${SAVE}이미지 저장</button></div>`}
           <p class="sh-msg" role="status" hidden></p></div>
       </section>
     </div>
@@ -65,7 +71,7 @@ export function showResult(r) {
     if (a === 'board') { close(); r.onBoard(); }
   });
   addEventListener('keydown', onKey, true);
-  el.querySelector('[data-share=kakao]').focus({ preventScroll: true });
+  el.querySelector('[data-share=kakao], [data-share=close]')?.focus({ preventScroll: true });
 }
 export const resultOpen = () => !!document.getElementById('result');
 
@@ -73,9 +79,9 @@ export const resultOpen = () => !!document.getElementById('result');
 function openPreview(card, share) {
   document.getElementById('share')?.remove();
   const el = document.createElement('div'); el.id = 'share'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', '인증샷 미리보기');
-  el.innerHTML = `<div class="sh-card"><img src="${card.toDataURL('image/png')}" width="1080" height="1350" alt="내가 쌓은 탑 네 컷과 꼬마 석공이 함께 찍힌 인증샷">
-    <div class="sh-side"><h3>내 탑 인증샷</h3><p>휴대폰에서는 공유 창에서 카카오톡이나 인스타그램을 고르면 바로 보낼 수 있어요. PC에서는 이미지를 저장하고 게임 주소를 복사해 드려요.</p>
-      <div class="sh-btns"><button class="btn kakao" data-share="kakao">${KAKAO}카카오톡 공유</button><button class="btn insta" data-share="insta">${INSTA}인스타그램 공유</button><button class="btn" data-share="save">${SAVE}이미지 저장</button><button class="btn navy" data-share="close">닫기</button></div>
+  el.innerHTML = `<div class="sh-card"><img src="${card.toDataURL('image/png')}" width="1080" height="1920" alt="내가 쌓은 탑 네 컷과 꼬마 석공이 함께 찍힌 인증샷">
+    <div class="sh-side"><h3>내 탑 인증샷</h3>${isKiosk() ? `${KIOSK_QR()}<div class="sh-btns"><button class="btn navy" data-share="close">닫기</button></div>` : `<p>${sentText('휴대폰에서는 공유 창에서 카카오톡이나 인스타그램을 고르면 바로 보낼 수 있어요. PC에서는 이미지를 저장하고 게임 주소를 복사해 드려요.')}</p>
+      <div class="sh-btns"><button class="btn kakao" data-share="kakao">${KAKAO}카카오톡 공유</button><button class="btn insta" data-share="insta">${INSTA}인스타그램 공유</button><button class="btn" data-share="save">${SAVE}이미지 저장</button><button class="btn navy" data-share="close">닫기</button></div>`}
       <p class="sh-msg" role="status" hidden></p></div></div>`;
   const close = () => { el.remove(); removeEventListener('keydown', onKey, true); };
   const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };

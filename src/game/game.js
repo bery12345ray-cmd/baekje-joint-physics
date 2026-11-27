@@ -6,12 +6,13 @@ import { buildPart, PART_NAMES, loadPartModels } from './parts.js';
 import { buildVillage, VMAT, resetVillageMats, loadVillageModels } from './village.js';
 import { showLeaflet, leafletOpen } from './leaflet.js';
 import { localBuild, askBuild } from './towerchat.js';
-import { startGuide, guideSeen } from './guide.js';
+import { startGuide, guideSeen, endGuide } from './guide.js';
 import { companionPanic, companionCheer, hideCompanion, companionTip, PART_TIP, panicLine, cheerLine } from './npc.js';
 import { showResult, resultOpen } from './result.js';
 import { recordScore, showLevelUp, titlesHTML, pagodaIcon, badgeText, level, LEVELS } from './levels.js';
 import { boardEl, showBoard, submitScore, getNick, rankOf } from './board.js';
-import { DISASTERS, DKEYS, caption } from './disasters.js';
+import { DISASTERS, DKEYS } from './disasters.js';
+import { sentHTML } from './prose.js';
 import { makeWeather, snowify } from './weather.js';
 const DEBUG = new URLSearchParams(location.search).get('debug') === '1'; // ?debug=1: FPS 표시(시험용)
 // 캔버스에 쓰는 글꼴(3D 이름표 등): 그 글꼴·글자를 받아 둔 뒤(document.fonts.load + ready)에만 그린다
@@ -342,7 +343,7 @@ function startTest(mode = 'ramp') {
   if (S.stage !== 3) try { S.shots = towerShots(); } catch (err) { console.warn('탑 사진을 찍지 못했어요', err); S.shots = []; } // 인증샷: 시험 직전, 다 쌓은 탑
   document.body.classList.add('testing'); $('#prog').hidden = false;
   sim.startQuake(S.mag, mode, S.disaster);
-  showCaption(caption(S.disaster)); hideCompanion(); // 시험 동안에는 탑이 잘 보이게
+  hideCompanion(); // 시험 동안에는 탑이 잘 보이게. 삼국사기 기록 한 줄은 아래 재해 판에만 보인다(위쪽 #caption은 2026-11-28 예진 요청으로 뺐다)
   banner(`${DN()} 시험 시작 · 세기 ${RAMP.FROM.toFixed(2)}에서 ${RAMP.TO.toFixed(2)}까지`, '#fff');
   render();
 }
@@ -814,7 +815,7 @@ function dockHTML() {
         ${S.testing ? '<button class="btn" data-act="stop">시험 멈추기</button>'
           : `<button class="btn light" data-act="ramp">${D.name} 시험 시작<small>세기 ${RAMP.FROM.toFixed(2)} → ${RAMP.TO.toFixed(2)}</small></button>${S.dirty ? '<button class="btn navy" data-act="rebuild">다시 세우기</button>' : ''}`}
       </div>
-      <div class="dock-foot"><div class="df-l"><p class="qdesc">${D.idea}</p><p class="drec">${rec}</p></div>${right}</div>
+      <div class="dock-foot"><div class="df-l"><p class="qdesc">${sentHTML(D.idea)}</p><p class="drec">${rec}</p></div>${right}</div>
     </div>
     ${dockOpen ? '' : `<div class="acts">${S.testing ? '<button class="btn" data-act="stop">시험 멈추기</button>' : `<button class="btn light" data-act="ramp">${D.name} 시험 시작<small>세기 ${RAMP.FROM.toFixed(2)} → ${RAMP.TO.toFixed(2)}</small></button>`}</div>${S.testing ? `<div class="dock-foot"><span></span>${right}</div>` : ''}`}
     ${L}</div>`);
@@ -982,8 +983,8 @@ const localBest = (st, dis = S.disaster) => st === 1 ? Math.max(0, ...Object.ent
 function render() {
   if (S.stage !== 3) { const A = asm(); if (S.stage === 1) S.tut.done = A.placed.length >= A.plan.length ? TUT.length - 1 : A.plan[A.placed.length].step; }
   const it = held();
-  const TOUCH_HINT = '한 손가락: 돌려 보기 · 두 손가락: 옮기기 · 확대';
-  $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : isTouchUI() ? (it ? `${it.name}: 금빛 상자를 끌어 제자리에 놓기 · ${TOUCH_HINT}` : TOUCH_HINT) : it ? `${it.name}을(를) 끌어 제자리에서 떼면 놓입니다 · 오른쪽 드래그: 돌려 보기 · R: 처음부터` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · T: 돌리기 · 오른쪽 드래그: 돌려 보기') : '왼쪽 드래그: 지도 옮기기 · 오른쪽 드래그: 돌려 보기 · 휠: 확대 · R: 처음부터';
+  const TOUCH_HINT = '한 손가락: 돌려 보기\n두 손가락: 옮기기 · 확대'; // 휴대폰 안내는 한 줄에 한 가지(white-space:pre-line)
+  $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : isTouchUI() ? (it ? `${it.name}: 금빛 상자를 끌어 제자리에 놓기\n${TOUCH_HINT}` : TOUCH_HINT) : it ? `${it.name}을(를) 끌어 제자리에서 떼면 놓입니다 · 오른쪽 드래그: 돌려 보기 · R: 처음부터` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · T: 돌리기 · 오른쪽 드래그: 돌려 보기') : '왼쪽 드래그: 지도 옮기기 · 오른쪽 드래그: 돌려 보기 · 휠: 확대 · R: 처음부터';
   showTarget(); syncControls(); restGhost();
   // 꼬마 석공: 조립 중에는 들고 있는 부재 한마디(목업 02), 시험 중에는 숨는다
   if (!S.testing) companionTip(it ? PART_TIP[it.part] || `${it.name}을(를) 제자리에 놓아 봐요!` : '');
@@ -1245,9 +1246,12 @@ const titleEl = $('#title');
 let lastInput = performance.now();
 for (const t of ['pointerdown', 'keydown', 'wheel', 'touchstart']) addEventListener(t, () => { lastInput = performance.now(); }, { capture: true, passive: true });
 function showTitle() { titleEl.hidden = false; titleEl.querySelector('button').focus(); }
-titleEl.addEventListener('click', () => { titleEl.hidden = true; lastInput = performance.now(); });
+// 키오스크 첫 화면을 누르면 다음 사람에게도 꼬마 석공 첫 안내를 처음부터 보여 준다
+titleEl.addEventListener('click', () => { titleEl.hidden = true; lastInput = performance.now(); if (KIOSK) setTimeout(() => startGuide({ force: true }), 250); });
 function kioskReset() {
-  closeSheet();
+  closeSheet(); endGuide();
+  for (const id of ['result', 'lvup', 'share']) document.getElementById(id)?.remove(); // 결과·칭호·인증샷 창도 닫는다
+  document.body.classList.remove('modal', 'testing'); $('#prog').hidden = true; hideCompanion(); S.pendingUp = null; S.quizAfter = false;
   Object.assign(S, { stage: 2, mag: 5, testing: false, tut: { done: 1, kind: 'flex' }, s2: { preset: 'jeong', kind: 'flex', ...HIST },
     sel: { mat: 'granite', shape: 'block' }, rot: 0, design: [], dirty: false, pick: false, last: null, crit: null });
   resetAsm(1); resetAsm(2); history.replaceState(null, '', location.pathname + location.search);

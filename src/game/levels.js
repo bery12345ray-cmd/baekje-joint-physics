@@ -6,6 +6,7 @@
 // 칭호에는 기준 높이·부재 수를 넘는 탑의 기록만 센다(낮고 납작한 더미로 얻지 못하게). 저장: localStorage 'baekje-level'.
 import { DISASTERS, DKEYS } from './disasters.js';
 import { npcImg } from './npc.js';
+import { sentHTML } from './prose.js';
 
 export const yearsOf = score => Math.round(1400 * Math.pow(Math.max(0, Math.min(6, score - 1)) / 6, 2));
 // 칭호에 세는 탑: 게임 속 높이 5.6 이상(정림사지 탑을 다 쌓으면 6.27, 미륵사지 6.36, 손으로 어긋나게 쌓아도 6.0 안팎 → 그 90%쯤)과 부재 15개 이상
@@ -75,7 +76,7 @@ export function showLevelUp(L) {
       <p class="lv-kicker">칭호가 올랐습니다</p>
       <div class="lv-medal">${pagodaIcon(L.lv, 96)}</div>
       <p class="lv-step">${L.lv > 1 ? `LV.0${L.lv - 1} → ` : ''}LV.0${L.lv}</p>
-      <h2 id="lvupTtl">${L.name}</h2><p class="lv-msg">“${L.msg}”</p>
+      <h2 id="lvupTtl">${L.name}</h2><p class="lv-msg">${sentHTML(`“${L.msg}”`)}</p>
       <div class="lv-chips">${chips}</div><p class="lv-cond">${L.need}</p>
       ${coupon(L)}
       <div class="lv-btns"><button class="btn" data-lv="titles">내 칭호 보기</button><button class="btn white" data-lv="ok">계속 쌓기 →</button></div>

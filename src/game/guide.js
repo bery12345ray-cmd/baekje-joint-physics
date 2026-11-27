@@ -17,6 +17,7 @@ const STEPS = [
 ];
 // 꼬마 석공 그림은 npc.js(두루마리를 들고 가리키는 자세)
 import { npcImg } from './npc.js';
+import { sentHTML } from './prose.js';
 
 let el = null, i = 0, onEnd = null;
 const done = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
@@ -71,7 +72,7 @@ function show() {
   const s = STEPS[i];
   const touch = document.body.classList.contains('touch') || matchMedia('(pointer: coarse)').matches;
   el.querySelector('.g-title').textContent = s.title;
-  el.querySelector('.g-text').innerHTML = touch && s.tt ? s.tt : s.t; // 손가락 기기는 손가락 조작으로 안내(글은 이 파일에 적은 것만)
+  el.querySelector('.g-text').innerHTML = sentHTML(touch && s.tt ? s.tt : s.t); // 손가락 기기는 손가락 조작으로 안내(글은 이 파일에 적은 것만)
   el.querySelector('.g-step').textContent = `${i + 1} / ${STEPS.length}`;
   el.querySelector('.g-dots').innerHTML = STEPS.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('');
   el.querySelector('.g-next').textContent = i < STEPS.length - 1 ? `다음: ${STEPS[i + 1].short}` : `다음: ${s.short}`;
@@ -107,3 +108,5 @@ export function startGuide({ force = false, after } = {}) {
   return true;
 }
 export const guideSeen = done;
+// 키오스크: 다음 사람을 위해 처음 화면으로 돌아갈 때 열린 안내를 닫는다(본 것으로 적지 않음)
+export function endGuide() { if (!el) return; el.remove(); el = null; onEnd = null; removeEventListener('resize', place); removeEventListener('keydown', key, true); }
