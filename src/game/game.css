@@ -416,3 +416,12 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
   #hint{display:none}
 }
 @media(max-width:860px){#notice{left:12px;right:12px;transform:none;max-width:none;top:64px;font-size:14px;padding:10px 14px}}
+
+/* 손가락으로 옮긴 부재 놓기 확인 막대(3D 화면 아래쪽) */
+#dropBar{position:absolute;left:50%;bottom:66px;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 14px;border-radius:999px;background:var(--togi);border:1px solid rgba(200,160,84,.7);box-shadow:var(--sh-2);color:var(--jeon);font-size:14px;max-width:calc(100% - 20px);animation:sheet-in .25s var(--ease)}
+#dropBar[hidden]{display:none}
+#dropBar span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#dropBar b{color:var(--goldl);font-weight:400;font-family:var(--D)}
+#dropBar .btn{flex:none;min-height:44px;padding:0 16px;border-radius:999px;font-size:15px}
+#dropBar .btn.line{color:var(--jeon);border-color:#6b6455}
+@media(max-width:400px){#dropBar span{display:none}}

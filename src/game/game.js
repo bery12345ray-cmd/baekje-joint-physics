@@ -487,13 +487,41 @@ function planAt(ev) {
   if (snap) { if (Math.abs(y - it.pos[1]) < 0.3) y = Math.max(y, it.pos[1]); else snap = false; }
   return { x, z, y, top, size, under, snap };
 }
+// ---------- 손가락 조작: 두 손가락이 닿는 순간 놓기를 취소하고, 한 손가락으로 옮긴 뒤 "여기에 놓기"를 눌러야 놓인다 ----------
+const touches = new Set(); let multi = false, pending = null;
+const dropBar = $('#dropBar');
+function setPending(p, ev) {
+  pending = p ? { p, x: ev.clientX, y: ev.clientY } : null;
+  dropBar.hidden = !pending;
+  if (pending) $('#dropName').textContent = held() ? held().name : SHAPES[S.sel.shape].name;
+}
+function commitDrop(p) {
+  if (S.stage === 3) place(p);
+  else if (held()) { placePiece([p.x, p.y, p.z], p.snap); ghost.visible = false; render(); }
+}
+dropBar.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const p = pending && pending.p; setPending(null);
+  if (b.dataset.drop === 'ok' && p && placing()) commitDrop(p); else ghost.visible = false;
+});
+renderer.domElement.addEventListener('pointerdown', ev => {
+  if (ev.pointerType !== 'touch') return;
+  touches.add(ev.pointerId);
+  if (touches.size > 1) { multi = true; downAt = null; ghost.visible = !!pending; } // 두 손가락: 화면 돌리기·확대만
+}, { capture: true });
+for (const t of ['pointerup', 'pointercancel']) renderer.domElement.addEventListener(t, ev => {
+  if (ev.pointerType !== 'touch') return;
+  touches.delete(ev.pointerId);
+  if (!touches.size) setTimeout(() => { multi = false; }, 0);
+});
 renderer.domElement.addEventListener('pointermove', ev => {
+  if (ev.pointerType === 'touch' && multi) return;
   const active = !S.testing && !S.dirty && (S.stage === 3 ? !S.pick : !!held());
   const p = active ? planAt(ev) : null;
   ghost.visible = !!p;
   if (p) { setGhost(p.size, S.stage === 3 ? null : held()); ghost.position.set(p.x + sim.gx, p.y, p.z + sim.gz); ghostMat.color.set(0xb8923a); ghostMat.opacity = 0.45; }
 });
-renderer.domElement.addEventListener('pointerleave', () => { ghost.visible = false; });
+renderer.domElement.addEventListener('pointerleave', () => { if (!pending) ghost.visible = false; });
 const placing = () => !S.testing && !S.dirty && (S.stage === 3 ? !S.pick : !!held());
 function syncControls() { // 놓는 중에는 왼쪽 드래그/한 손가락 = 부재 옮기기, 오른쪽 드래그/두 손가락 = 시점
   const on = placing();
@@ -501,16 +529,16 @@ function syncControls() { // 놓는 중에는 왼쪽 드래그/한 손가락 = �
   controls.touches.ONE = on ? null : THREE.TOUCH.ROTATE; controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
 }
 renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
-renderer.domElement.addEventListener('pointerdown', ev => { downAt = ev.button === 0 ? [ev.clientX, ev.clientY] : null; });
+renderer.domElement.addEventListener('pointerdown', ev => { downAt = ev.button === 0 && !(ev.pointerType === 'touch' && multi) ? [ev.clientX, ev.clientY] : null; });
 renderer.domElement.addEventListener('pointerup', ev => {
-  if (S.testing || !downAt || ev.button !== 0) return;
+  if (S.testing || !downAt || ev.button !== 0 || (ev.pointerType === 'touch' && multi)) { downAt = null; return; }
   const moved = Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 6; downAt = null;
   if (moved && !placing()) return;
   if (S.dirty) { rebuild(); render(); banner('탑을 다시 세웠습니다', '#fff'); return; }
   if (S.stage === 3 && S.pick) return pickUp(ev);
   const p = planAt(ev); if (!p) return;
-  if (S.stage === 3) place(p);
-  else if (held()) { placePiece([p.x, p.y, p.z], p.snap); ghost.visible = false; render(); }
+  if (ev.pointerType === 'touch') { setPending(p, ev); return; } // 손가락: 바로 놓지 않고 확인 버튼으로
+  commitDrop(p);
 });
 function place(p) {
   if (S.design.length >= 80) { banner('부재는 80개까지 놓을 수 있습니다', '#fff'); return; }
@@ -715,6 +743,7 @@ function breakSentences(root) {
   }
 }
 function render() {
+  if (pending && (S.testing || S.dirty || !placing())) setPending(null);
   if (S.stage !== 3) { const A = asm(); if (S.stage === 1) S.tut.done = A.placed.length >= A.plan.length ? TUT.length - 1 : A.plan[A.placed.length].step; }
   const it = held();
   $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : it ? `${it.name}을(를) 끌어 제자리를 찾아 떼면 놓입니다 · 시점: 오른쪽 드래그 또는 두 손가락` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · R: 돌리기 · 시점: 오른쪽 드래그') : '드래그: 돌려 보기 · 휠/두 손가락: 확대';
