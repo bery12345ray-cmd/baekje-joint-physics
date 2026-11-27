@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Sim, MATERIALS, pga, buildJeongnimsa, buildNeungsa, buildPalsang, woodBase, woodPosts, woodBeam, woodRoof, woodStory, woodFinial } from './sim.js';
-import { buildPart, PART_NAMES } from './parts.js';
+import { buildPart, PART_NAMES, loadPartModels } from './parts.js';
 import { buildVillage, VMAT, resetVillageMats } from './village.js';
 
 const $ = s => document.querySelector(s);
@@ -1098,6 +1098,7 @@ function loop(now) {
 
 try {
   await RAPIER.init();
+  await loadPartModels(); // 블렌더 부재가 있으면 먼저 불러 둔다
   sim = new Sim(RAPIER); hookSim();
   const h = location.hash.match(/stage([123])/); if (h) S.stage = +h[1];
   S.design = []; resetAsm(1); resetAsm(2);

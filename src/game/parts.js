@@ -1,6 +1,7 @@
 // 실제 탑 부재의 모양. 물리 충돌은 sim.js의 상자(size)로 하고, 여기서는 그 상자에 맞춰 보이는 모양만 만든다.
 // 모든 모양은 부재 중심을 원점으로, 가로 w · 높이 h · 깊이 d 상자 안에 들어가게 그린다(지붕 기와와 상륜만 조금 위로 넘친다).
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export const PART_NAMES = {
   jidae: '지대석', gidan: '기단 면석·갑석', tapsin1: '1층 탑신석(우주)', tapsin: '탑신석', batchim: '옥개받침', okgae: '옥개석',
@@ -52,7 +53,35 @@ function frustum(wb, wt, h) {
 
 // 일러스트처럼 먹선으로 윤곽을 두른다
 const INK = new THREE.LineBasicMaterial({ color: 0x4a463e, transparent: true, opacity: 0.85 });
-export function buildPart(part, [w, h, d], M, { corner = [1, 1], ink = true, wall = 0, peak = 0, tone } = {}) {
+// ---------- 블렌더에서 만든 부재(public/models/<부재>.glb) ----------
+// models/manifest.json에 적힌 부재만 불러온다. 없으면 아래 코드로 그린 모양을 그대로 쓴다(물리 상자는 어느 쪽이든 같다).
+// 블렌더 재료 이름 → 게임 재료: stone·wood·red·plaster·green·gold·tile
+const MODELS = {};
+export async function loadPartModels(base = 'models/') {
+  try {
+    const r = await fetch(base + 'manifest.json', { cache: 'no-cache' }); if (!r.ok) return 0;
+    const list = await r.json(), loader = new GLTFLoader();
+    await Promise.all(list.map(async p => { try { MODELS[p] = (await loader.loadAsync(base + p + '.glb')).scene; } catch (e) { console.warn('model', p, e); } }));
+    return Object.keys(MODELS).length;
+  } catch { return 0; }
+}
+export const hasModel = part => !!MODELS[part];
+function modelPart(part, [w, h, d], M, { ink, tone }) {
+  const src = MODELS[part], inner = src.clone(true), G = new THREE.Group();
+  const box = new THREE.Box3().setFromObject(inner), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const stone = (tone && M['granite_' + tone]) || M.granite;
+  const pick = n => { n = (n || '').toLowerCase(); return n.startsWith('stone') ? stone : n.startsWith('wood') ? M.pine : n.startsWith('red') ? M.dan : n.startsWith('plaster') ? M.plaster : n.startsWith('green') ? M.green : n.startsWith('gold') ? (M.gold || M.goldPaint) : n.startsWith('tile') ? (M.giwa || M.tile) : null; };
+  inner.traverse(o => { if (!o.isMesh) return; const m = pick(o.material && o.material.name); if (m) o.material = m; o.castShadow = o.receiveShadow = true;
+    if (ink) o.add(new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 32), INK)); });
+  inner.position.set(-c.x, -c.y, -c.z);
+  const fit = new THREE.Group(); fit.add(inner); fit.scale.set(w / (sz.x || 1), h / (sz.y || 1), d / (sz.z || 1)); G.add(fit);
+  return G;
+}
+export function buildPart(part, size, M, opts = {}) {
+  if (MODELS[part]) return modelPart(part, size, M, { ink: opts.ink !== false, tone: opts.tone });
+  return buildPartCode(part, size, M, opts);
+}
+function buildPartCode(part, [w, h, d], M, { corner = [1, 1], ink = true, wall = 0, peak = 0, tone } = {}) {
   const G = new THREE.Group();
   const add = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true;
     if (ink) { const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 28), INK); m.add(e); } G.add(m); return m; };
