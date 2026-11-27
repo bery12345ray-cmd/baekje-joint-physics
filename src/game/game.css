@@ -449,7 +449,6 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
   box-shadow:var(--sh-2),inset 10px 0 18px -12px rgba(20,19,17,.35);overflow:hidden;transform-origin:left center;transform-style:preserve-3d;backface-visibility:hidden;
   transition:transform .9s var(--ease),opacity .9s var(--ease),filter .9s var(--ease)}
 .lf-page.turned{transform:rotateY(-160deg);opacity:0;filter:brightness(.7);pointer-events:none}
-.lf-page::after{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(var(--gold),var(--goldl),var(--gold));opacity:.8}
 .lf-art{background:#e8e0cf;border-right:1px solid var(--line);display:grid;place-items:center;min-height:0}
 .lf-art svg{width:100%;height:100%;display:block}
 .lf-text{padding:34px 36px 26px;overflow:auto;display:flex;flex-direction:column;gap:10px;word-break:keep-all;overflow-wrap:break-word}
