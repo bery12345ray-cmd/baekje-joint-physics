@@ -23,8 +23,8 @@ header{position:fixed;left:0;right:0;top:0;height:76px;z-index:5;background:var(
 #tabs a[aria-current=step] i{background:var(--gold);color:var(--togi);border-color:var(--gold)}
 #tabs .beads{width:40px;height:4px;background:radial-gradient(circle,#6b6455 2px,transparent 2.5px) 0 50%/10px 4px repeat-x}
 .bestw{flex:1 1 0;display:flex;justify-content:flex-end}
-.best{height:42px;padding:0 16px;border-radius:21px;border:1px solid var(--gold);color:var(--goldl);display:inline-flex;align-items:center;gap:8px;font-size:14px;white-space:nowrap}
-.best b{font:20px var(--D)}
+
+
 #hud{position:fixed;left:20px;top:96px;z-index:4;display:flex;background:var(--togi);border:1px solid var(--gold);border-radius:6px;overflow:hidden;box-shadow:0 8px 24px rgba(40,34,26,.3);pointer-events:none}
 #hud>div{padding:9px 15px;display:flex;flex-direction:column;border-left:1px solid #4d483f;color:#f1ece0}
 #hud>div:first-child{border-left:0}
@@ -198,7 +198,7 @@ details{font-size:14px}details summary{cursor:pointer;font:16px var(--D);min-hei
 .title-in p{margin:0;font:20px var(--D);color:var(--jeon2)}.title-in .han{font-size:18px;color:#a59c8a}
 .title-in .btn{flex:none;margin-top:18px;min-width:240px}
 @media(max-width:860px){
-  .bestw{display:flex}.bestw .best{display:none}#xbar{margin-right:0}#xbar button{padding:0 10px;min-height:40px}
+  .bestw{display:flex}#xbar{margin-right:0}#xbar button{padding:0 10px;min-height:40px}
   #fps{position:absolute;right:10px;top:72px}
   .gj{grid-template-columns:minmax(0,1fr)}
   .sheet{padding:20px 18px}
@@ -219,19 +219,19 @@ details{font-size:14px}details summary{cursor:pointer;font:16px var(--D);min-hei
 
 /* 국가유산 안내 · 부재 기법 · 시험 해설 */
 .tech{margin:0;font-size:13.5px;line-height:1.6;color:var(--ink);background:rgba(184,146,58,.12);border:1px solid rgba(184,146,58,.45);padding:6px 10px;border-radius:4px}
-.lesson-box{border:1px solid rgba(63,125,110,.45)}
-.hg{display:grid;gap:12px}
-.hcard{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;background:var(--jeon2);border-radius:4px;padding:12px}
-.hcard img{width:120px;height:90px;object-fit:contain;background:var(--jeon);border:1px solid var(--line);border-radius:3px}
-.hcard b{display:block;font:19px var(--D);font-weight:400}
-.htag{font-size:12.5px;color:#7a5d1c}
-.hwhere{margin:4px 0;font-size:13px;color:var(--mute)}
-.hcard ul{margin:4px 0;padding-left:18px;font-size:14px;line-height:1.6}
-.hgame{margin:4px 0 0;font-size:13px;color:var(--pat)}
-.tl-list{list-style:none;margin:0;padding:0;display:grid;gap:4px;border-left:2px solid var(--gold);padding-left:12px}
-.tl-list li{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;font-size:14px}
-.tl-list b{font:16px var(--D);font-weight:400;color:#7a5d1c}
-@media(max-width:560px){.hcard{grid-template-columns:minmax(0,1fr)}.hcard img{width:100%;height:120px}}
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* 빠른 되돌리기: 놀이 화면 오른쪽 아래, 판 밖 */
 #quickUndo{position:fixed;right:424px;top:96px;z-index:4;min-height:48px;padding:0 16px;border-radius:24px;border:2px solid var(--gold);background:var(--togi);color:var(--goldl);font:16px var(--B);display:inline-flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 6px 18px rgba(40,34,26,.35)}
 #quickUndo kbd{font:12px var(--B);color:#cbbf9c;border:1px solid #6b6455;border-radius:4px;padding:1px 5px}
@@ -250,7 +250,7 @@ details{font-size:14px}details summary{cursor:pointer;font:16px var(--D);min-hei
 #hint{font-size:14px;padding:7px 12px;background:rgba(46,43,39,.86);color:#f1ece0;border-radius:6px}
 #banner{text-shadow:0 2px 4px rgba(20,16,10,.7),0 0 24px rgba(20,16,10,.55)}
 #notice{font-size:15.5px;line-height:1.6;padding:12px 18px}
-.hcard ul{font-size:15px;line-height:1.75}.hwhere,.hgame{font-size:14px}
+
 #xbar button{flex-shrink:0}
 @media(max-width:1280px) and (min-width:861px){#xbar .dev{display:none}}
 
@@ -284,14 +284,14 @@ header{background:linear-gradient(180deg,#1b1916,var(--togi));border-bottom:1px 
 #tabs a{transition:color .2s var(--ease)}
 #tabs a i{transition:background .25s var(--ease),border-color .25s var(--ease),transform .25s var(--ease)}
 #tabs a:hover i{border-color:var(--gold);transform:translateY(-1px)}
-.best{border-color:rgba(200,160,84,.7)}
+
 #xbar button{transition:background .2s var(--ease),border-color .2s var(--ease),color .2s var(--ease)}
 #xbar button:hover{border-color:var(--gold);color:var(--goldl)}
 #hud{border:1px solid rgba(200,160,84,.6);border-radius:var(--r-md);box-shadow:var(--sh-2)}
 #hud>div{border-left-color:#2e2b26}
 .tablet{border:1px solid rgba(201,190,166,.9);border-radius:var(--r-lg);box-shadow:var(--sh-1);outline:none}
 #panel::before{right:24px;top:24px;opacity:.85}
-.spirit,.asm,.facts div,.real,.hcard{border-radius:var(--r-md)}
+.spirit,.asm,.facts div,.real{border-radius:var(--r-md)}
 .spirit{background:#e3dccb;border:1px solid rgba(201,190,166,.7)}
 .asm{background:#e3dccb;border:1px solid rgba(201,190,166,.7)}
 .btn,.seg button,.tbtn{border-radius:var(--r-sm);transition:background .2s var(--ease),border-color .2s var(--ease),transform .15s var(--ease),box-shadow .2s var(--ease)}
@@ -324,26 +324,26 @@ label.sl input,#mag{accent-color:var(--pat)}
 
 /* 한국어 줄바꿈: 단어 중간에서 끊지 않고, 긴 말은 칸 안에서 넘긴다. 설명 글은 읽기 편한 너비로 */
 body,button,input,textarea,select{word-break:keep-all;overflow-wrap:break-word}
-.note,.spirit p,.tech,.steps small,#critique p,.hcard ul,.hgame,.hwhere,.gj ul,.lesson-box p,.result,.sheet p{max-width:62ch}
-.sheet .hg,.sheet .tl-list{max-width:68ch}
+.note,.spirit p,.tech,.steps small,#critique p,.gj ul,.result,.sheet p{max-width:62ch}
+
 #banner{max-width:min(22em,calc(100vw - 480px));margin:0 auto;text-wrap:balance}
 @media(max-width:860px){#banner{max-width:calc(100vw - 32px)}}
-.ttl h2,.hcard b,#critique .title{text-wrap:balance}
+.ttl h2,#critique .title{text-wrap:balance}
 /* 문장 단위 블록 + 고른 줄바꿈: 마지막 줄에 낱말 하나만 남지 않게 */
 .sent{display:block;text-wrap:balance}
 .sent+.sent{margin-top:2px}
-.note,.spirit p,.tech,.steps small,#critique p,.hcard li,.hgame,.lesson-box p{text-wrap:pretty}
+.note,.spirit p,.tech,.steps small,#critique p{text-wrap:pretty}
 
 /* ==========================================================================
    한국어 가독성 규칙(전체 적용): 단어 단위 줄바꿈 · 넉넉한 줄 간격 · 문장/의미 단위 줄바꿈 · 읽기 좋은 폭
    ========================================================================== */
 html,body,h1,h2,h3,h4,p,li,span,b,small,label,button,figcaption,summary,td,th{word-break:keep-all;overflow-wrap:break-word}
 body{line-height:1.7}
-.note,.spirit p,.tech,.steps small,#critique p,.hcard ul,.hgame,.hwhere,.gj ul,.lesson-box p,.sheet p,.sheet li,.result,.holding{line-height:1.72}
-h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real figcaption b,.tl,.maglab>span:first-child{line-height:1.35;text-wrap:balance}
+.note,.spirit p,.tech,.steps small,#critique p,.gj ul,.sheet p,.sheet li,.result,.holding{line-height:1.72}
+h1,h2,h3,.ttl h2,.brand b,.spirit b,#critique .title,.nx b,.ex b,.real figcaption b,.tl,.maglab>span:first-child{line-height:1.35;text-wrap:balance}
 #panel h3,.sheet h3{margin:10px 0 2px}
-.spirit p,.lesson-box p,#critique p,.sheet p{margin:0 0 6px}.spirit p:last-child,#critique p:last-of-type,.sheet p:last-child{margin-bottom:0}
-.hcard li+li,.gj li+li{margin-top:4px}
+.spirit p,#critique p,.sheet p{margin:0 0 6px}.spirit p:last-child,#critique p:last-of-type,.sheet p:last-child{margin-bottom:0}
+.gj li+li{margin-top:4px}
 /* 문장 블록: 끝나면 반드시 다음 줄, 블록 안은 고르게 */
 .sent{display:block;text-wrap:balance}
 .sent+.sent{margin-top:4px}
@@ -351,7 +351,7 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
 .ph{display:inline}
 @media(min-width:768px){.ph{display:inline-block;max-width:100%}}
 /* 폭 제한: 설명은 60~70ch 안 */
-.note,.spirit p,.tech,.steps small,#critique p,.hcard ul,.hgame,.hwhere,.gj ul,.lesson-box p,.result,.sheet p,.sheet li{max-width:64ch}
+.note,.spirit p,.tech,.steps small,#critique p,.gj ul,.result,.sheet p,.sheet li{max-width:64ch}
 .sheet{max-width:min(720px,100%)}
 /* 짧은 안내 문구: 외톨이 낱말 방지 */
 #hint,#notice,#banner,.locked,.nx-left,.nx-done,.asm-top,.maglab,.check,.quiz-q,.sheet h2,.sheet h3{text-wrap:balance}
@@ -365,11 +365,11 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
   #tabs{justify-self:center;min-width:0}
   .bestw{flex:none;display:flex;align-items:center;gap:8px;min-width:0}
   #xbar{margin-right:0}
-  .best{flex-shrink:0}
+  
 }
 @media(max-width:1600px) and (min-width:861px){#tabs a span{display:none}}
 @media(max-width:1440px) and (min-width:861px){#xbar .dev{display:none}.brand span{display:none}}
-@media(max-width:1180px) and (min-width:861px){.best .best-l{display:none}.best{padding:0 12px}}
+
 
 /* ==========================================================================
    모바일(860px 이하): 짧은 상단 바 → 큰 3D 화면 → 지진 조작판 → 부재 줄 → 도구 → 설명 판
@@ -403,7 +403,7 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
   .reals .real.sm img{max-height:150px}
   .sheet{padding:18px 16px;max-height:calc(100svh - 24px)}
   #sheet{padding:12px}
-  .hcard{grid-template-columns:minmax(0,1fr)}.hcard img{width:100%;height:140px}
+  
 }
 /* 가로로 든 휴대폰: 3D 화면이 거의 한 화면 */
 @media(max-width:960px) and (orientation:landscape) and (max-height:520px){
@@ -561,3 +561,98 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
 #magWord{font-size:15px;font-weight:700;color:var(--red);margin-left:4px}
 .steps li i{font-style:normal}
 .facts2,.tips,.lead{flex-shrink:0}
+/* ==========================================================================
+   2026-11-27 · 대목장 안내, 온라인 순위, 접는 지진 세기 판, 처음부터(R), 실제 사진
+   ========================================================================== */
+/* 실제 사진: 잘리지 않게 통째로 보인다 */
+.real.photo img{aspect-ratio:auto;max-height:340px;object-fit:contain;background:#e9e3d4}
+.real.sm.photo img{max-height:180px}
+.real .credit{font-size:11px;line-height:1.4}
+.real .credit a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(77,71,62,.4)}
+/* 처음부터(R): 되돌리기 아래 */
+#resetBtn{position:fixed;right:424px;top:154px;z-index:4;min-height:44px;padding:0 14px;border-radius:22px;border:1.5px solid rgba(200,160,84,.75);background:rgba(20,19,17,.88);color:var(--jeon);font:15px var(--B);display:inline-flex;align-items:center;gap:7px;cursor:pointer;box-shadow:var(--sh-1);transition:background .2s var(--ease),border-color .2s var(--ease)}
+#resetBtn:hover{background:var(--togi2);border-color:var(--gold)}
+#resetBtn kbd{font:12px var(--B);color:#cbbf9c;border:1px solid #6b6455;border-radius:4px;padding:1px 5px}
+#quickUndo[hidden]+#resetBtn{top:96px}
+#fps{left:50%;right:auto;top:84px;transform:translateX(-50%)}
+/* ? 안내 다시 보기 */
+#xbar .qmark{width:42px;padding:0;font:700 18px var(--D);color:var(--goldl);border-color:rgba(200,160,84,.6)}
+/* 지진 세기 판: 머리에서 접고 펼친다 */
+.dock-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.dock-h b{font:17px var(--D);font-weight:400;color:var(--ink)}
+.dock-tg{display:inline-flex;align-items:center;gap:4px;min-height:34px;padding:0 10px;border-radius:17px;border:1px solid var(--line);background:transparent;color:var(--mute);font:13px var(--B);cursor:pointer}
+.dock-tg:hover{border-color:var(--gold);color:var(--ink)}
+.mag.closed{gap:2px}
+#magBody[hidden]{display:none}
+.live{margin:4px 0 0;font-size:15px;color:var(--ink)}
+.live b{font:28px var(--D);color:var(--red);font-variant-numeric:tabular-nums;margin-left:4px}
+.result .score{white-space:nowrap}.result .score b{color:var(--red)}
+/* 온라인 순위 */
+#board{flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:var(--r-md);background:#fbf8f1;border:1px solid rgba(201,190,166,.9)}
+.bd-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.bd-head h3{margin:0}
+.bd-on{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--pat);white-space:nowrap}
+.bd-on i{width:8px;height:8px;border-radius:50%;background:var(--pat);box-shadow:0 0 0 3px rgba(74,124,116,.2);animation:bdPulse 2.4s ease-in-out infinite}
+@keyframes bdPulse{50%{box-shadow:0 0 0 6px rgba(74,124,116,0)}}
+.bd-list{list-style:none;margin:0;padding:0;display:grid;gap:2px;font-variant-numeric:tabular-nums}
+.bd-list li{display:grid;grid-template-columns:2em minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r-sm);font-size:15px}
+.bd-list li:nth-child(odd){background:rgba(222,214,196,.45)}
+.bd-list li i{font:16px var(--D);font-style:normal;color:#7a5d1c;text-align:center}
+.bd-list li:nth-child(-n+3) i{color:var(--togi);background:var(--gold);border-radius:50%;width:1.6em;height:1.6em;display:grid;place-items:center;font-size:13px}
+.bd-list li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-list li b{font:17px var(--D);color:var(--red)}
+.bd-list li.me{outline:2px solid var(--pat);outline-offset:-2px}
+.bd-local{display:flex;justify-content:space-between;align-items:baseline;padding:6px 8px;border-radius:var(--r-sm);background:rgba(222,214,196,.45)}
+.bd-local b{font:18px var(--D);color:var(--red)}
+.bd-nick{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px}
+.bd-nick label{font-size:13.5px;color:var(--mute)}
+.bd-nick input{min-width:0;font:inherit;font-size:15px;padding:8px 10px;border-radius:var(--r-sm);border:1px solid #b9b09c;background:#fff;color:var(--ink)}
+.bd-nick .btn{min-height:40px;padding:0 14px;width:auto;flex:none}
+.bd-msg{margin:0;font-size:13.5px;color:var(--pat);word-break:keep-all}
+/* 대목장 안내 */
+#guide{position:fixed;inset:0;z-index:12}
+.g-hole{position:fixed;border-radius:var(--r-lg);box-shadow:0 0 0 9999px rgba(20,19,17,.62),0 0 0 3px var(--gold) inset;transition:left .35s var(--ease),top .35s var(--ease),width .35s var(--ease),height .35s var(--ease),opacity .2s;pointer-events:none}
+.g-card{position:fixed;display:grid;grid-template-columns:96px minmax(0,1fr);align-items:end;gap:6px;transition:left .35s var(--ease),top .35s var(--ease)}
+.g-card.pop .g-bubble{animation:gPop .35s var(--ease)}
+.g-card.pop .g-who{animation:gHop .5s var(--ease)}
+@keyframes gPop{from{transform:scale(.94);opacity:0}}
+@keyframes gHop{40%{transform:translateY(-8px) rotate(-3deg)}}
+.g-who{width:96px;height:auto;filter:drop-shadow(0 6px 10px rgba(20,19,17,.35))}
+.g-who .g-flower{transform-origin:60px 34px;animation:gSway 3s ease-in-out infinite}
+@keyframes gSway{50%{transform:translate(60px,26px) rotate(8deg)}}
+.g-bubble{position:relative;background:var(--jeon);border:2px solid var(--gold);border-radius:var(--r-lg);padding:14px 16px 12px;box-shadow:var(--sh-2);display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.g-bubble::before{content:"";position:absolute;left:-12px;bottom:22px;border:10px solid transparent;border-right-color:var(--gold);border-left:0}
+.g-bubble::after{content:"";position:absolute;left:-8px;bottom:24px;border:8px solid transparent;border-right-color:var(--jeon);border-left:0}
+.g-step{font-size:12px;color:#7a5d1c;letter-spacing:.04em}
+.g-text{margin:0;font:16.5px/1.65 var(--D);color:var(--ink);word-break:keep-all}
+.g-btns{display:flex;justify-content:flex-end;gap:8px}
+.g-btns .btn{width:auto;flex:none;min-height:42px;padding:0 18px}
+@media(max-width:520px){.g-card{grid-template-columns:64px minmax(0,1fr)}.g-who{width:64px}.g-text{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.g-hole,.g-card{transition:none}.g-card.pop .g-bubble,.g-card.pop .g-who,.g-who .g-flower,.bd-on i{animation:none}}
+@media(max-width:860px){
+  #resetBtn{position:absolute;left:10px;top:auto;bottom:10px;right:auto}#resetBtn kbd{display:none}
+  #quickUndo[hidden]+#resetBtn{top:auto}
+  #fps{position:absolute;top:60px}
+}
+/* 재해 시험: 재해 고르기, 시작할 때 백제 기록 한 줄, 폭풍우·폭설 때 어두워지는 하늘 */
+.dsel{margin-left:6px;font:14px var(--B);color:var(--red)}
+.dpick{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px 0 4px}
+.dpick button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;padding:6px 4px;border-radius:var(--r-sm);border:1px solid var(--line);background:#fbf8f1;color:var(--ink);font:14px var(--B);cursor:pointer;transition:background .2s var(--ease),border-color .2s var(--ease),color .2s var(--ease)}
+.dpick button:hover:not(:disabled){border-color:var(--gold);background:rgba(200,160,84,.1)}
+.dpick button[aria-checked=true]{background:var(--togi);color:var(--goldl);border-color:var(--togi);box-shadow:inset 0 0 0 1px rgba(200,160,84,.5)}
+.dpick button:disabled{opacity:.55;cursor:not-allowed}
+.drec{margin:4px 0 0;font:14.5px/1.5 var(--D);color:var(--ink);word-break:keep-all}
+.drec a{color:inherit;text-decoration:underline;text-decoration-color:rgba(200,160,84,.7);text-underline-offset:3px}
+.drec small{font:12px var(--B);color:var(--mute);margin-left:4px}
+#caption{position:fixed;left:180px;right:620px;top:96px;z-index:4;margin:0 auto;width:fit-content;max-width:40em;padding:9px 18px;border-radius:999px;background:rgba(20,19,17,.84);border:1px solid rgba(200,160,84,.7);color:var(--jeon);font:16px/1.45 var(--D);text-align:center;box-shadow:var(--sh-1);pointer-events:none;text-wrap:balance}
+#caption[hidden]{display:none}
+#stage{isolation:isolate}
+#sky{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,#2b2f35,#4b4f55 70%,#5c5a52);opacity:0;pointer-events:none;will-change:opacity}
+.bd-dis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.bd-dis button{min-height:34px;padding:0 2px;border-radius:var(--r-sm);border:1px solid var(--line);background:transparent;color:var(--mute);font:13px var(--B);cursor:pointer}
+.bd-dis button[aria-pressed=true]{background:var(--pat);border-color:var(--pat);color:#fff}
+@media(max-width:860px){
+  #caption{position:absolute;left:10px;right:10px;top:auto;bottom:62px;max-width:none;width:auto;border-radius:var(--r-md);font-size:14px}
+  .dpick button{min-height:52px;font-size:13px}
+}
+@media(max-width:420px){.dpick{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}.dpick button svg{width:18px;height:18px}}

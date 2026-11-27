@@ -14,6 +14,22 @@ export const JOINTS = {
 };
 // Peak ground acceleration (m/s²) for a magnitude-like intensity 1.0–7.0.
 export const QUAKE = { base: 0.2, growth: 2.0, freq: 1.4 }; // 지진 세기 조율값: 바르게 지은 탑은 기본 세기 5를 버티고, 잘못 지은 탑은 무너진다
+// 지진 시험(점수): 세기를 FROM에서 TO까지 STEP씩 DURATION초 동안 고르게 올린다. 무너지면 그 순간의 세기가 점수, TO를 HOLD초 버티면 만점.
+export const RAMP = { FROM: 1, TO: 7, STEP: 0.01, DURATION: 30, HOLD: 1.5 };
+// 무너짐 판정(예민하게): 부재가 이만큼 움직이면 '빠짐', 이만큼 움직이기 시작하면 '흔들리기 시작'(점수는 흔들리기 시작한 순간의 세기)
+export const FAIL = { drop: 0.3, slide: 0.35, tilt: 20, warnDrop: 0.1, warnSlide: 0.12, warnTilt: 7, onsetWindow: 3, integrity: 0.9, pieces: 2 };
+// 재해 시험: 모두 같은 세기 오르막(RAMP)과 같은 무너짐 판정을 쓰고, 탑에 가하는 힘만 다르다.
+//  quake 지진: 땅 흔들기 · wind 강풍: 높이·바람 받는 넓이에 비례한 옆 힘 + 돌풍 · storm 폭풍우: 바람 + 빗물로 부재 사이 마찰이 줄어듦
+//  flood 홍수: 물이 차올라 아래 부재를 물살이 밀고, 물에 잠긴 만큼 뜨는 힘(나무는 뜬다) · snow 폭설: 드러난 윗면에 눈이 쌓여 무게가 늘고(바람 반대쪽에 더), 약한 바람
+// 값은 바르게 쌓은 정림사지 탑이 세기 4~6 언저리에서 버티다 무너지도록 맞춘 게임 조율값이다(실제 풍속·수위·적설량이 아님).
+export const DISASTER = {
+  quake: {},
+  wind: { wind: 1.7 },
+  storm: { wind: 1.5, slip: 0.7 },
+  flood: { depth: 3.2, current: 3.8 },
+  snow: { depth: 1.6, load: 1.15, wind: 0.32 },
+};
+export const rampMag = t => Math.min(RAMP.TO, Math.round((RAMP.FROM + Math.floor(t / (RAMP.DURATION / ((RAMP.TO - RAMP.FROM) / RAMP.STEP))) * RAMP.STEP) * 100) / 100);
 export const pga = m => QUAKE.base * Math.pow(QUAKE.growth, m - 1);
 // dominant shaking frequency (Hz) = QUAKE.freq
 
@@ -75,20 +91,70 @@ export class Sim {
     if (j.joint) this.world.removeImpulseJoint(j.joint, true);
     this.joints.splice(this.joints.indexOf(j), 1);
   }
-  startQuake(mag, mode = 'fixed') {
+  startQuake(mag, mode = 'fixed', kind = 'quake') {
     this.capture();
-    const st = this.stats();
-    // 진단 근거: 응력 초과 부재, 무게중심 수평 이탈(밑동 반폭 대비·기울기 각도)을 지진 동안 모은다
-    this.quake = { t: 0, mode, mag, phase: Math.random() * 6.28, passed: 0, collapsed: false, log: [],
+    const st = this.stats(), a = Math.random() * Math.PI * 2;
+    // 진단 근거: 응력 초과 부재, 무게중심 수평 이탈(밑동 반폭 대비·기울기 각도)을 재해 동안 모은다
+    this.quake = { t: 0, mode, mag, kind, phase: Math.random() * 6.28, dir: [Math.cos(a), Math.sin(a)], level: 0, snow: 0, wet: 0, passed: 0, collapsed: false, log: [],
       stressed: new Set(), base0: st.base, comY0: st.comY, com0: this.comXZ(), comShift: 0 };
     this.mag = mode === 'ramp' ? 1 : mag; this.broke = false;
+    for (const b of this.blocks) b.f0 = b.col.friction();
+    if (kind === 'snow') this.snowAreas();
   }
-  stopQuake() { this.quake = null; this.mag = 0; }
+  // 눈이 쌓일 수 있는 윗면 넓이: 바로 위에 얹힌 부재가 덮은 만큼 뺀다
+  snowAreas() {
+    const box = b => { const p = b.body.translation(); return { x: p.x, z: p.z, y0: p.y - b.size[1] / 2, y1: p.y + b.size[1] / 2, w: b.size[0], d: b.size[2] }; };
+    const B = this.blocks.map(box);
+    this.blocks.forEach((b, i) => {
+      const s = B[i]; let A = s.w * s.d;
+      B.forEach((o, j) => { if (i === j || Math.abs(o.y0 - s.y1) > 0.08) return;
+        const ox = Math.max(0, Math.min(s.x + s.w / 2, o.x + o.w / 2) - Math.max(s.x - s.w / 2, o.x - o.w / 2)), oz = Math.max(0, Math.min(s.z + s.d / 2, o.z + o.d / 2) - Math.max(s.z - s.d / 2, o.z - o.d / 2));
+        A -= ox * oz; });
+      b.snowA = Math.max(0, A);
+    });
+  }
+  // 지진이 아닌 재해의 힘(한 물리 단계 dt 동안의 충격량으로 준다)
+  loads(q, dt, env) {
+    const D = DISASTER[q.kind], I = env * pga(this.mag) * (this.quakeGain || 1), t = q.t, [dx, dz] = q.dir, frac = (this.mag - 1) / 6;
+    const face = (b, s = 1) => (Math.abs(dz) * b.size[0] + Math.abs(dx) * b.size[2]) * b.size[1] * s; // 바람·물살을 받는 넓이
+    if (D.wind) {
+      const gust = 0.72 + 0.28 * Math.sin(1.3 * t + q.phase) + 0.18 * Math.sin(3.7 * t + 2 * q.phase) + 0.12 * Math.sin(0.43 * t);
+      q.gust = gust;
+      for (const b of this.blocks) {
+        const y = b.body.translation().y, F = D.wind * I * face(b) * (0.35 + Math.max(0, y) * 0.22) * gust * dt;
+        b.body.applyImpulse({ x: dx * F, y: 0, z: dz * F }, true);
+      }
+    }
+    if (D.slip) { // 빗물: 세기가 오를수록 부재 사이가 미끄러워진다(0.25초마다 고친다)
+      q.wet = frac * env;
+      if (!q.slipT || t - q.slipT > 0.25) { q.slipT = t; for (const b of this.blocks) if (b.f0 != null) b.col.setFriction(b.f0 * (1 - D.slip * q.wet)); }
+    }
+    if (D.current) { // 홍수: 수위가 오르고, 잠긴 부분만큼 물살이 밀고 물이 띄운다(물 밀도 1, 소나무 0.55는 뜬다)
+      const L = q.level = D.depth * frac * env, flow = D.current * I * (0.85 + 0.15 * Math.sin(2.1 * t + q.phase));
+      for (const b of this.blocks) {
+        const p = b.body.translation(), h = b.size[1], bot = p.y - h / 2; if (L <= bot) continue;
+        const s = Math.min(1, (L - bot) / h), vol = b.size[0] * b.size[1] * b.size[2] * s, F = flow * face(b, s) * dt;
+        b.body.applyImpulse({ x: dx * F, y: 9.81 * vol * dt, z: dz * F }, true);
+      }
+    }
+    if (D.load) { // 폭설: 쌓인 눈(밀도 0.3)이 윗면을 누르고, 바람 반대쪽 가장자리에 더 쌓인다
+      const depth = q.snow = D.depth * frac * env;
+      for (const b of this.blocks) {
+        if (!b.snowA) continue;
+        const p = b.body.translation(), W = 0.3 * 9.81 * b.snowA * depth * D.load * dt;
+        b.body.applyImpulseAtPoint({ x: 0, y: -W, z: 0 }, { x: p.x - dx * b.size[0] * 0.3, y: p.y + b.size[1] / 2, z: p.z - dz * b.size[2] * 0.3 }, true);
+      }
+    }
+  }
+  stopQuake() { // 빗물로 낮춘 마찰을 되돌린다
+    if (this.quake && this.quake.kind === 'storm') for (const b of this.blocks) if (b.f0 != null) b.col.setFriction(b.f0);
+    this.quake = null; this.mag = 0;
+  }
   // Snapshot resting state so damage is measured relative to it.
   capture() {
     for (const b of this.blocks) {
       const p = b.body.translation();
-      b.p0 = [p.x - this.gx, p.y, p.z - this.gz]; b.q0 = { ...b.body.rotation() }; b.fallen = false;
+      b.p0 = [p.x - this.gx, p.y, p.z - this.gz]; b.q0 = { ...b.body.rotation() }; b.fallen = false; b.warn = null;
     }
     this.h0 = this.height();
   }
@@ -108,12 +174,14 @@ export class Sim {
     const q = this.quake;
     if (q) {
       q.t += dt;
-      if (q.mode === 'ramp') this.mag = Math.min(7, 1 + Math.floor(q.t / 2.5) * 0.5);
+      if (q.mode === 'ramp' && !q.collapsed) this.mag = rampMag(q.t); // 무너지면 세기를 더 올리지 않는다
       const env = Math.min(1, q.t / 1.2);
+      if (q.kind && q.kind !== 'quake') { this.loads(q, dt, env); this.gx *= 0.98; this.gz *= 0.98; } else {
       const A = env * pga(this.mag) * (this.quakeGain || 1) / Math.pow(2 * Math.PI * QUAKE.freq, 2); // quakeGain: 예시 탑을 일부러 약하게 할 때
       const w = 2 * Math.PI * QUAKE.freq, t = q.t;
       this.gx = A * (0.8 * Math.sin(w * t) + 0.35 * Math.sin(1.73 * w * t + q.phase));
       this.gz = A * 0.45 * Math.sin(0.81 * w * t + q.phase * 0.5);
+      }
     } else { this.gx *= 0.98; this.gz *= 0.98; }
     this.ground.setNextKinematicTranslation({ x: this.gx, y: -0.5, z: this.gz });
     // rotational springs that give joints their bending stiffness
@@ -210,21 +278,27 @@ export class Sim {
       const p = b.body.translation();
       const dy = b.p0[1] - p.y;
       const dh = Math.hypot(p.x - this.gx - b.p0[0], p.z - this.gz - b.p0[2]);
-      const tilt = qangle(b.body.rotation(), b.q0) * 57.3;
-      if (b.broken || dy > Math.min(...b.size) * 0.5 || dh > Math.max(b.size[0], b.size[2]) * 0.6 || tilt > 35) b.fallen = true;
+      const tilt = qangle(b.body.rotation(), b.q0) * 57.3, mn = Math.min(...b.size), mx = Math.max(b.size[0], b.size[2]);
+      // 흔들리기 시작한 순간(세기·시각)을 기억해 두면, 무너짐이 확인됐을 때 그 순간의 세기를 점수로 쓸 수 있다
+      if (!b.warn && q.t > 1 && (b.broken || dy > mn * FAIL.warnDrop || dh > mx * FAIL.warnSlide || tilt > FAIL.warnTilt)) b.warn = { t: q.t, mag: this.mag };
+      if (b.broken || dy > mn * FAIL.drop || dh > mx * FAIL.slide || tilt > FAIL.tilt) b.fallen = true;
       if (b.fallen) { fallenMass += b.mass; fallenN++; }
     }
     if (top && top.fallen) topFallen = true;
     if (!q.collapsed) { const c = this.comXZ(); q.comShift = Math.max(q.comShift, Math.hypot(c[0] - q.com0[0], c[1] - q.com0[1])); }
     q.integrity = total ? 1 - fallenMass / total : 1;
     q.fallenN = fallenN;
-    if (!q.collapsed && !this.armor && (q.integrity < 0.85 || topFallen || fallenN >= 3)) {
-      q.collapsed = true; q.collapseMag = this.mag; q.collapseT = q.t;
-      q.reason = topFallen ? 'top' : fallenN >= 3 && q.integrity >= 0.85 ? 'pieces' : 'mass';
-      this.onEvent({ type: 'collapse', mag: this.mag, reason: q.reason });
+    if (!q.collapsed && !this.armor && (q.integrity < FAIL.integrity || topFallen || fallenN >= FAIL.pieces)) {
+      // 무너진 부재들이 흔들리기 시작한 가장 이른 순간(최근 onsetWindow초 안)의 세기 = 실제로 무너지기 시작한 세기
+      let onset = this.mag;
+      for (const b of this.blocks) if (b.fallen && b.warn && q.t - b.warn.t <= FAIL.onsetWindow) onset = Math.min(onset, b.warn.mag);
+      q.collapsed = true; q.collapseMag = onset; q.collapseT = q.t;
+      q.reason = topFallen ? 'top' : fallenN >= FAIL.pieces && q.integrity >= FAIL.integrity ? 'pieces' : 'mass';
+      this.mag = onset; // 화면의 세기도 그 자리에 멈춘다
+      this.onEvent({ type: 'collapse', mag: onset, reason: q.reason });
     }
-    if (q.mode === 'ramp' && !q.collapsed) q.passed = Math.max(q.passed, q.t >= 2.5 ? Math.min(7, 1 + (Math.floor(q.t / 2.5) - 1) * 0.5) : 0);
-    if (q.mode === 'ramp' && !q.collapsed && q.t >= 2.5 * 13) { q.passed = 7; q.done = true; }
+    if (q.mode === 'ramp' && !q.collapsed) q.passed = this.mag;
+    if (q.mode === 'ramp' && !q.collapsed && q.t >= RAMP.DURATION + RAMP.HOLD) { q.passed = RAMP.TO; q.done = true; }
     if (q.mode === 'fixed' && q.t >= 8) q.done = true;
     if (q.collapsed && q.t - q.collapseT > 2.5) q.done = true;
   }

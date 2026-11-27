@@ -1,13 +1,18 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { Sim, MATERIALS, pga, buildJeongnimsa, buildMireuksa, mireukStory1, mireukRoof, mireukUpper, WORLD, buildNeungsa, buildPalsang, woodBase, woodPosts, woodBeam, woodRoof, woodStory, woodFinial } from './sim.js';
+import { Sim, MATERIALS, RAMP, pga, buildJeongnimsa, buildMireuksa, mireukStory1, mireukRoof, mireukUpper, WORLD, buildNeungsa, buildPalsang, woodBase, woodPosts, woodBeam, woodRoof, woodStory, woodFinial } from './sim.js';
 import { buildPart, PART_NAMES, loadPartModels } from './parts.js';
 import { buildVillage, VMAT, resetVillageMats, loadVillageModels } from './village.js';
-import { showLeaflet } from './leaflet.js';
+import { showLeaflet, leafletOpen } from './leaflet.js';
 import { localBuild, askBuild } from './towerchat.js';
-// 탑을 쌓기 전에 그 탑의 안내 리플렛을 한 번 띄운다(첫 화면·첫째 마당 정림사지 · 확장 마당 미륵사지)
-const stageLeaflet = (force = false) => { if (S.stage !== 3 && !KIOSK_Q) showLeaflet(S.stage === 1 ? 'mireuk' : 'jeong', { once: !force }); };
+import { startGuide, guideSeen } from './guide.js';
+import { boardEl, showBoard, submitScore } from './board.js';
+import { DISASTERS, DKEYS, caption } from './disasters.js';
+import { makeWeather } from './weather.js';
+const DEBUG = new URLSearchParams(location.search).get('debug') === '1'; // ?debug=1: FPS 표시(시험용)
+// 확장 마당(미륵사지)에 들어갈 때 안내 리플렛을 한 번 띄운다
+const stageLeaflet = (force = false) => { if (S.stage === 1 && !KIOSK_Q) showLeaflet('mireuk', { once: !force }); }; // 정림사지 리플렛은 2026-11-27 뺐다
 const KIOSK_Q = new URLSearchParams(location.search).get('kiosk') === '1';
 
 const $ = s => document.querySelector(s);
@@ -40,7 +45,7 @@ const TUT = [
   ['벽석과 창방·평방 얹기', '면마다 가운데 문을 낸 벽석을 끼우고, 기둥 머리를 창방·평방으로 엮습니다. 나무 건물의 짜임을 돌로 그대로 옮겼습니다.'],
   ['층급받침과 지붕돌 올리기', '3단으로 내민 층급받침 위에 얇고 넓은 지붕돌을 얹습니다. 처마 끝이 살짝 들려 목조 지붕을 닮았습니다.'],
   ['2층부터 6층까지 올리기', '낮은 몸돌과 지붕돌을 아주 천천히 줄여 올립니다. 원래 9층으로 보며, 오늘은 6층까지 남았습니다.'],
-  ['지진 시험', '지진 세기를 정하고 흔들어 보세요. 이음 방식을 바꿔 다시 쌓으면 차이가 보입니다.'],
+  ['재해 시험', '지진·강풍·폭풍우·홍수·폭설 가운데 하나를 골라 시험해 보세요. 이음 방식을 바꿔 다시 쌓으면 차이가 보입니다.'],
 ];
 // 실제 정림사지 오층석탑 사진에서 잰 비례: 기단은 1층 지붕돌보다 좁고 낮은 두 단, 1층 몸돌은 너비의 절반쯤 높이, 2층부터 몸돌이 아주 낮다
 const HIST = { taper: 0.86, roof: 1.63, body: 1, ornament: false, first: 1.1, up: 0.45, bt: 0.78, jw: 3.65, jh: 0.55, gw: 3.0, gh: 0.42 };
@@ -72,77 +77,19 @@ const PART_INFO = {
   giwa: '기와지붕입니다. 처마 끝 수막새에는 백제 특유의 연꽃무늬가 찍혔습니다. 지붕 무게가 아래 기둥을 눌러 짜임새를 다잡습니다.',
   sangryun: '꼭대기의 상륜입니다. 찰주에 보륜과 보주를 꿰어 탑의 끝을 장식합니다.',
 };
-// 지진 시험 결과를 실제 탑과 검이불루 화이불치로 풀어 주는 해설(첫째·둘째 마당)
-function lessonHTML() {
-  if (!S.last || S.testing || S.stage === 3) return '';
-  const L = S.last, m = L.survived, k = S.tut.kind, s2 = S.s2;
-  const at = m ? `세기 ${m.toFixed(1)}까지 버텼습니다` : `세기 ${(L.collapseMag || L.mag).toFixed(1)}에서 무너졌습니다`;
-  let t;
-  if (S.stage === 1) t = k === 'flex' ? `턱을 파 맞추고 은장으로 이은 미륵사지 석탑이 ${at}. 꽉 조이지 않고 여백을 남긴 짜임새가 흔들림을 받아 흘려보냅니다. 같은 세기에서 꽉 고정·그냥 얹기와 견주어 보세요.`
-    : k === 'rigid' ? `꽉 붙여 고정한 탑이 ${at}. 단단해 보여도 조금만 비틀리면 이음이 쪼개지고, 풀린 뒤엔 그냥 얹힌 부재가 됩니다. 백제 장인이 맞춤과 유격을 쓴 까닭입니다.`
-    : `이음 없이 얹기만 한 탑이 ${at}. 마찰로만 버티니 기둥이 미끄러지면 그대로 무너집니다.`;
-  else {
-    const hist = s2.taper === HIST.taper && s2.roof === HIST.roof && s2.body === HIST.body && !s2.ornament;
-    t = hist ? `정림사지 비례 그대로 쌓은 탑이 ${at}. 낮은 몸돌, 얇은 지붕돌, 층마다 줄어드는 체감이 무게중심을 아래에 붙잡아 둡니다. 실제 탑은 약 1,400년 동안 그 자리를 지켰습니다.`
-      : s2.ornament || s2.body > 1.3 || s2.roof > 2 ? `몸돌을 키우거나 지붕돌을 넓히고 장식을 얹은 탑이 ${at}. 위가 무거워질수록 흔들림에 약해집니다. 화려하되 사치스럽지 않게(화이불치), 덜어낼수록 단단해집니다. "정림사지 비례로 되돌리기"와 견주어 보세요.`
-      : `비례를 바꾼 탑이 ${at}. 정림사지 원래 비례와 같은 세기에서 견주어 보세요. 백제 석공이 고른 비례에는 까닭이 있습니다.`;
-  }
-  return `<div class="spirit lesson-box"><b>시험 해설 · 검이불루 화이불치</b><p>${t}</p></div>`;
-}
-// ---------- 국가유산 안내: 게임 속 유산의 실제 이야기 ----------
-const HERITAGE = [
-  { name: '부여 정림사지 오층석탑', tag: '국보 · 백제 사비기 · 화강암 · 높이 8.33m · 오늘까지 남은 백제 석탑', img: 'pagoda-jeongnimsa.svg',
-    where: '충남 부여군 부여읍 정림사지(사비 도성 한가운데 있던 절터)',
-    body: ['익산 미륵사지 석탑과 함께 두 기만 남은 백제 석탑으로, 한국 석탑의 시조로 꼽힙니다.', '기둥돌을 끼운 낮은 기단, 배흘림 기둥 표현, 얇고 넓은 지붕돌로 목조 건물의 짜임새를 돌로 옮기면서도 장중하고 세련된 비례를 보여 줍니다.', '660년 백제가 멸망한 뒤 당나라 소정방이 1층 몸돌에 「대당평백제국비명」을 새겼습니다.', '2015년 「백제역사유적지구」의 하나로 유네스코 세계유산에 등재되었습니다.'],
-    game: '첫째 마당에서 이 비례 그대로 쌓고 지진 시험을 합니다.' },
-  { name: '익산 미륵사지 석탑', tag: '국보 · 백제 무왕 639년 · 오늘까지 남은 백제 석탑', img: 'pagoda-mireuksa.svg',
-    where: '전북특별자치도 익산시 금마면 미륵사지(서쪽 석탑)',
-    body: ['우리나라에 남은 가장 오래되고 가장 큰 석탑으로, 원래 9층으로 추정되며 6층까지 남았습니다.', '목조 건물을 돌로 옮겨, 1층 몸돌은 사방 3칸에 가운데 문을 내고 민흘림 기둥과 창방·평방을 돌로 본떴습니다. 백제 목탑의 모습을 잘 보여 줍니다.', '2009년 해체 수리 중 심주에서 금제 사리봉안기가 나와 639년(기해년)에 사리를 모셨음이 밝혀졌습니다.', '무너질 위험이 있어 2001년부터 해체·보수했고, 2019년에 정비를 마쳤습니다.'],
-    game: '확장 마당에서 돌기둥·심주석·벽석 순서로 쌓아 보며, 같은 틀로 다른 백제 석탑을 짓는 확장성을 보여 줍니다.' },
-  { name: '부여 능산리 사지와 능사 목탑', tag: '사적 · 567년 무렵 창건 · 목탑은 터만 남음', img: 'pagoda-neungsa.svg',
-    where: '충남 부여군 부여읍 능산리(능산리 고분군과 나성 사이)',
-    body: ['1992년부터 발굴한 결과 중문·목탑·금당·강당이 한 줄로 놓인 전형적인 백제 가람(일탑일금당)으로 밝혀졌습니다.', '1993년 12월 공방터 수로에서 백제금동대향로(국보)가 나왔습니다.', '목탑 터에서 나온 석조사리감(국보)에는 창왕(위덕왕) 13년, 567년에 사리를 모셨다는 글이 새겨져 있습니다.', '목탑은 남아 있지 않아, 부여 백제문화단지(1993~2010년 조성)에 발굴된 터의 규모대로 능사와 오층목탑을 재현했습니다.'],
-    game: '게임에서 직접 쌓지는 않고, 왜 목탑에서 석탑으로 바뀌었는지 설명할 때 다룹니다.' },
-  { name: '부여 무량사 오층석탑', tag: '보물 · 고려 전기 · 백제계 석탑(백제 시대 탑은 아님)', img: 'pagoda-muryangsa.svg',
-    where: '충남 부여군 외산면 무량사 극락전 앞',
-    body: ['백제 탑의 우아한 선과 통일신라 탑의 장중함을 함께 이어받은 고려 전기의 탑입니다. 백제의 옛 땅에서 백제 석탑의 기법이 이어졌음을 보여 줍니다.', '몸돌은 낮은 편이고 지붕돌은 얇고 넓으며, 처마가 수평으로 가다가 끝에서 가볍게 들립니다.', '해체 수리 때 1층 몸돌에서 금동 아미타삼존상이, 5층에서 사리구가 나왔습니다.'],
-    game: '정림사지 석탑의 비례를 이어받은 충남의 백제계 석탑으로 소개합니다.' },
-  { name: '공주 청량사지 남매탑 (오층·칠층석탑)', tag: '두 탑 모두 보물 · 고려(12세기 무렵 추정) · 백제계 석탑(백제 시대 탑은 아님)', img: 'pagoda-cheongnyangsa.svg',
-    where: '충남 공주시 반포면 계룡산 연천봉 중턱, 해발 약 615m 청량사 터',
-    body: ['칠층석탑과 나란히 서 있어 "남매탑(오뉘탑)"으로 불립니다.', '오층석탑은 정림사지 석탑을, 칠층석탑은 미륵사지 석탑을 본뜬 백제계 탑으로 평가됩니다.', '1950년대에 무너져 있던 것을 1961년에 다시 세웠습니다. 계룡산 일대의 화강암으로 쌓았습니다.'],
-    game: '정림사지 석탑과 견주어 보는 충남의 백제계 석탑으로 소개합니다.' },
-  { name: '보은 법주사 팔상전', tag: '국보 · 조선(임진왜란 뒤 다시 지음) · 충북의 오층 목탑', img: 'pagoda-palsangjeon.svg',
-    where: '충북 보은군 속리산 법주사',
-    body: ['우리나라에 남아 있는 유일한 오층 목탑이자, 남아 있는 탑 가운데 가장 높은 건축물입니다. 백제 시대 탑은 아니지만, 삼국시대부터 이어진 목탑의 모습을 오늘날 실물로 볼 수 있는 유일한 사례입니다.', '임진왜란 때 불탄 뒤 17세기 초에 다시 지었고, 1968년에 해체 수리했습니다.', '1·2층은 앞·옆면 5칸, 3·4층은 3칸, 5층은 2칸으로 줄어들고, 지붕은 꼭짓점 하나로 모이는 사모지붕입니다.', '벽에 부처의 일생을 여덟 장면으로 그린 팔상도가 있어 팔상전이라 부릅니다.'],
-    game: '우리나라에 하나 남은 오층 목탑으로, 목탑과 석탑을 견주는 참고 자료로 소개합니다.' },
-  { name: '산수문전 (부여 외리 문양전 일괄)', tag: '보물 · 7세기 백제 · 한 변 약 29cm', img: 'tile.svg',
-    where: '1937년 충남 부여군 규암면 외리 절터에서 출토, 국립부여박물관 소장',
-    body: ['산수문전·연화문전·봉황문전 등 무늬 벽돌 8매 가운데 하나입니다.', '세 봉우리 산이 겹겹이 서고 소나무, 구름, 물가 바위, 산속 건물과 그곳으로 걸어가는 사람까지 담아 백제 산수화의 모습을 보여 줍니다.', '해외 전시에 가장 자주 나간 백제 대표 유물로 알려져 있습니다.'],
-    game: '게임 배경의 겹산 능선과 오른쪽 판의 전돌 무늬가 여기서 왔습니다.' },
-  { name: '백제 연꽃무늬 수막새', tag: '사비기 · 부여 일대 절터·궁터 출토', img: 'lotus.svg',
-    where: '부여 관북리·정림사지·능산리 사지 등에서 출토, 국립부여박물관 등 소장',
-    body: ['처마 끝 둥근 기와(수막새)에 연꽃을 찍은 것입니다.', '꽃잎 끝이 살짝 들려 부드럽게 솟는 연꽃무늬가 백제 수막새의 특징으로 꼽힙니다.', '절과 궁궐 지붕마다 이어져 백제 건축의 얼굴이 되었습니다.'],
-    game: '상단 엠블럼과 대목장 비평의 인장, 목탑 기와지붕의 모티브입니다.' },
-];
-const TIMELINE = [
-  ['538', '성왕, 사비(부여)로 도읍을 옮김'], ['567', '능사 목탑에 사리를 모심(석조사리감 명문)'], ['660', '백제 멸망 · 정림사지 석탑에 당의 비명이 새겨짐'],
-  ['1937', '부여 외리 절터에서 산수문전 등 문양전 출토'], ['1992', '능산리 사지 발굴 시작'], ['1993', '능산리 사지에서 백제금동대향로 출토'], ['1995', '목탑 터에서 석조사리감 확인'],
-  ['2010', '백제문화단지 완공 · 능사와 오층목탑 재현'], ['2015', '백제역사유적지구 유네스코 세계유산 등재'],
-];
-function heritageHTML() {
-  return `${head('게임 속 백제 국가유산', '<span id="sheetTtl">국가유산 안내</span>')}
-    <div class="hg">${HERITAGE.map(h => `<article class="hcard"><img src="${h.img}" alt="" aria-hidden="true"><div><b>${h.name}</b><span class="htag">${h.tag}</span><p class="hwhere">${h.where}</p><ul>${h.body.map(t => `<li>${t}</li>`).join('')}</ul><p class="hgame">게임에서: ${h.game}</p></div></article>`).join('')}</div>
-    <h3>발굴과 복원의 시간</h3><ol class="tl-list">${TIMELINE.map(([y, t]) => `<li><b>${y}</b><span>${t}</span></li>`).join('')}</ol>
-    <p class="note">출처: 국가유산청 국가유산포털(부여 정림사지 오층석탑, 부여 능산리 사지, 부여 외리 문양전 일괄), 국립부여박물관, 백제역사유적지구 통합관리단. 건립 연대처럼 학계에서 논의 중인 내용은 일반적인 설명을 따랐습니다.</p>
-    <div class="row"><button class="btn pat" data-x="close">닫기</button></div>`;
-}
-
-
 // ---------- state & records ----------
-const S = { stage: 2, mag: 5, testing: false, tut: { done: 1, kind: 'flex' }, s2: { preset: 'jeong', kind: 'flex', ...HIST },
+const S = { stage: 2, mag: 5, disaster: 'quake', testing: false, tut: { done: 1, kind: 'flex' }, s2: { preset: 'jeong', kind: 'flex', ...HIST },
   sel: { mat: 'granite', shape: 'block' }, rot: 0, design: [], dirty: false, ev: { breaks: 0, joints: 0 }, pre: null, last: null, crit: null };
 let REC = { s1: {}, s2: {}, s3: [] };
+try { const d = localStorage.getItem('baekje-disaster'); if (DISASTERS[d]) S.disaster = d; } catch { /* 저장소 없음 */ }
 try { REC = { ...REC, ...JSON.parse(localStorage.getItem('baekje-rec') || '{}') }; } catch { /* 저장소 없음 */ }
+// 예전 기록(지진만 있던 때)을 마당·재해별 열쇠로 옮긴다: s1 '이음' → 'quake|이음', s2 비례 설명 → 'quake'
+if (!REC.v2) {
+  REC.s1 = Object.fromEntries(Object.entries(REC.s1 || {}).map(([k, v]) => [k.includes('|') ? k : `quake|${k}`, v]));
+  const old = Object.entries(REC.s2 || {}).filter(([k]) => !DISASTERS[k]); REC.s2 = Object.fromEntries(Object.entries(REC.s2 || {}).filter(([k]) => DISASTERS[k]));
+  if (old.length) REC.s2.quake = Math.max(REC.s2.quake || 0, ...old.map(([, v]) => v));
+  REC.v2 = 1;
+}
 const saveRec = () => { try { localStorage.setItem('baekje-rec', JSON.stringify(REC)); } catch { /* 저장소 없음 */ } };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -159,7 +106,7 @@ camera.position.set(12, 8.5, 14);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 3.2, 0); controls.enableDamping = true; controls.maxPolarAngle = 1.52;
 controls.minDistance = 5; controls.maxDistance = 48;
-scene.add(new THREE.HemisphereLight(0xe3ecee, 0x8a7c68, 1.1));
+const hemi = new THREE.HemisphereLight(0xe3ecee, 0x8a7c68, 1.1); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff1dc, 2.4);
 sun.position.set(9, 16, 7); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 14, bottom: -6, near: 1, far: 50 }); sun.shadow.bias = -0.0004;
@@ -247,9 +194,9 @@ function hookSim() {
   sim.onEvent = e => {
     if (e.type === 'break') S.ev.breaks++;
     if (e.type === 'joint') S.ev.joints++;
-    if (e.type === 'collapse') banner(`지진 세기 ${e.mag.toFixed(1)}에서 무너졌습니다`, '#ffc2a8');
+    if (e.type === 'collapse') banner(`${DN()} 세기 ${e.mag.toFixed(2)}에서 무너졌습니다`, '#ffc2a8');
     if (e.type === 'shatter') dust(e.pos, Math.min(6, 0.6 + e.size * 0.5));
-    if (e.type === 'giveway') { banner(`지진 세기 ${e.mag.toFixed(1)} · 구조가 버티지 못하고 쓰러집니다`, '#ffc2a8'); const H = sim.height(); for (let i = 0; i < 6; i++) dust([sim.gx + (Math.random() - 0.5) * 4, H * i / 6, sim.gz + (Math.random() - 0.5) * 4], 2 + H * 0.05); }
+    if (e.type === 'giveway') { banner(`${DN()} 세기 ${e.mag.toFixed(2)} · 구조가 버티지 못하고 쓰러집니다`, '#ffc2a8'); const H = sim.height(); for (let i = 0; i < 6; i++) dust([sim.gx + (Math.random() - 0.5) * 4, H * i / 6, sim.gz + (Math.random() - 0.5) * 4], 2 + H * 0.05); }
   };
 }
 // 돌이 깨질 때 피어오르는 돌먼지(작은 점 구름이 퍼지며 옅어진다)
@@ -373,32 +320,42 @@ function syncVillage(force = false) {
   if (!vilLabels.parent) scene.add(vilLabels);
   for (const [t, x, y, z] of VIL.labels) vilLabels.add(label(t, x, y, z, { w: 3.6 }));
 }
-const recKey = () => S.stage === 1 ? S.tut.kind : S.s2.preset === 'jeong'
-  ? `정림사 · 탑신 ${S.s2.body}× · 체감 ${S.s2.taper} · 지붕 ${S.s2.roof}×${S.s2.ornament ? ' · 장식' : ''}` : `능사지 · ${JOINT_INFO[S.s2.kind][0]}`;
 
-// ---------- earthquake test ----------
-function startTest(mode) {
+// ---------- 재해 시험: 고른 재해(지진·강풍·폭풍우·홍수·폭설)의 세기를 1.00→7.00으로 올리고, 무너지기 시작한 세기가 점수 ----------
+const DN = () => DISASTERS[S.disaster].name;
+function startTest(mode = 'ramp') {
   if (S.dirty) rebuild();
-  // 첫째 마당(미륵사지 석탑): 이음 없이 얹은 돌은 맞닿은 면이 매끈해 잘 미끄러진다(턱·은장이 없음)
+  // 확장 마당(미륵사지 석탑): 이음 없이 얹은 돌은 맞닿은 면이 매끈해 잘 미끄러진다(턱·은장이 없음)
   if (S.stage === 1) { sim.quakeGain = S.tut.kind === 'none' ? 2.3 : S.tut.kind === 'rigid' ? 1.4 : 1; if (S.tut.kind === 'none') for (const b of sim.blocks) b.col.setFriction(0.12); }
   for (let i = 0; i < 60; i++) sim.step();
-  // 지진 전까지 부러진 나무 = 자중(自重) 초과. 지진 중 기록과 따로 센다
+  // 시험 전까지 부러진 나무 = 자중(自重) 초과. 시험 중 기록과 따로 센다
   S.preEv = { ...S.ev };
   S.pre = sim.stats(); S.ev = { breaks: 0, joints: 0 }; S.testing = true; S.crit = null; S.rampShown = 1;
-  sim.startQuake(S.mag, mode);
-  banner(mode === 'ramp' ? '한계 도전 시작 · 지진 세기 1.0' : `지진 세기 ${S.mag.toFixed(1)} 시험`, '#fff');
+  sim.startQuake(S.mag, mode, S.disaster);
+  showCaption(caption(S.disaster));
+  banner(`${DN()} 시험 시작 · 세기 ${RAMP.FROM.toFixed(2)}에서 ${RAMP.TO.toFixed(2)}까지`, '#fff');
   render();
 }
+// 시험 동안 화면 위쪽에 백제 기록 한 줄
+function showCaption(text) { const c = $('#caption'); c.textContent = text; c.hidden = !text; }
 function finishTest() {
   const q = sim.quake; sim.stopQuake(); S.testing = false; S.dirty = true;
   const survived = q.mode === 'fixed' ? (q.collapsed ? 0 : q.mag) : q.passed;
-  S.last = { mode: q.mode, mag: q.mag, collapsed: q.collapsed, collapseMag: q.collapseMag, survived, reason: q.reason,
+  // 점수(지진 시험): 무너지기 시작한 순간의 세기, 끝까지 버티면 7.00(만점). 고른 세기로 흔들기는 버틴 세기만 기록한다.
+  const score = q.mode === 'ramp' && !q.aborted ? Math.round((q.collapsed ? q.collapseMag : RAMP.TO) * 100) / 100 : null;
+  S.last = { mode: q.mode, mag: q.mag, collapsed: q.collapsed, collapseMag: q.collapseMag, survived, score, reason: q.reason,
     stressed: q.stressed.size, comShift: q.comShift, base0: q.base0, comY0: q.comY0 };
-  if (!q.collapsed) banner(q.mode === 'ramp' ? '지진 세기 7.0까지 모두 버텼습니다' : `지진 세기 ${q.mag.toFixed(1)}을 버텼습니다`, '#fff3d2');
-  if (survived) {
-    if (S.stage === 1) REC.s1[S.tut.kind] = Math.max(REC.s1[S.tut.kind] || 0, survived);
-    if (S.stage === 2) REC.s2[recKey()] = Math.max(REC.s2[recKey()] || 0, survived);
+  showCaption('');
+  const kind = q.kind || 'quake', dn = DISASTERS[kind].name;
+  S.last.kind = kind;
+  if (q.aborted) banner(`${dn} 시험을 멈췄습니다 · 점수는 남기지 않았어요`, '#fff');
+  else if (!q.collapsed) banner(q.mode === 'ramp' ? `${dn} 세기 ${RAMP.TO.toFixed(2)}까지 모두 버텼습니다 · 만점!` : `${dn} 세기 ${q.mag.toFixed(1)}을 버텼습니다`, '#fff3d2');
+  const rec = score ?? (q.mode === 'fixed' ? survived : 0);
+  if (rec) { // 마당·재해별 최고 기록(확장 마당은 이음 방식별로도)
+    if (S.stage === 1) { const k = `${kind}|${S.tut.kind}`; REC.s1[k] = Math.max(REC.s1[k] || 0, rec); }
+    if (S.stage === 2) REC.s2[kind] = Math.max(REC.s2[kind] || 0, rec);
   }
+  if (score != null && S.stage !== 3) submitScore(S.stage, score, kind); // 온라인 순위(연결 없으면 이 기기 기록만)
   const ev = evidence(S.pre, S.last, S.ev, S.preEv || { breaks: 0 }), diag = diagnose(S.pre, S.last, ev);
   recordTrial(S.pre, S.last, diag);
   if (S.stage === 3) {
@@ -466,7 +423,7 @@ function physicsLog(st, res, ev, e) {
     응력초과_나무부재수: e.stressed, 지진중_부러진_나무부재: e.broken,
     자중초과: { 지진전_부러진_나무부재: e.preBroken, 여부: e.preBroken > 0 },
     무게중심_최대이탈: { 기울기_각도_도: e.comAngle, 밑동반폭_대비_퍼센트: e.comRatio },
-    시험방식: res.mode === 'ramp' ? '한계 도전(지진 세기 1.0부터 0.5씩 올림)' : `고정 지진 세기 ${res.mag.toFixed(1)}`,
+    시험방식: res.mode === 'ramp' ? `${DISASTERS[res.kind || S.disaster].name} 시험(세기 ${RAMP.FROM}부터 ${RAMP.STEP}씩 ${RAMP.DURATION}초 동안 ${RAMP.TO}까지 올림)` : `고정 지진 세기 ${res.mag.toFixed(1)}`,
     붕괴: res.collapsed, 붕괴_지진세기: res.collapsed ? r2(res.collapseMag || res.mag) : null,
     붕괴_원인: res.collapsed ? ({ top: '꼭대기 부재 추락', pieces: '부재 3개 이상 이탈', mass: '전체 무게의 15% 이상 무너짐' }[res.reason] || null) : null,
     최대_버틴_지진세기: e.survived,
@@ -585,27 +542,16 @@ function planAt(ev) {
   if (snap) { if (Math.abs(y - it.pos[1]) < 0.3) y = Math.max(y, it.pos[1]); else snap = false; }
   return { x, z, y, top, size, under, snap };
 }
-// ---------- 손가락 조작: 두 손가락이 닿는 순간 놓기를 취소하고, 한 손가락으로 옮긴 뒤 "여기에 놓기"를 눌러야 놓인다 ----------
-const touches = new Set(); let multi = false, pending = null;
-const dropBar = $('#dropBar');
-function setPending(p, ev) {
-  pending = p ? { p, x: ev.clientX, y: ev.clientY } : null;
-  dropBar.hidden = !pending;
-  if (pending) $('#dropName').textContent = held() ? held().name : SHAPES[S.sel.shape].name;
-}
+// ---------- 손가락 조작: 한 손가락으로 끌어 떼면 바로 놓인다(확인 묻지 않음). 두 손가락이 닿으면 놓기를 멈추고 지도 옮기기·확대만 ----------
+const touches = new Set(); let multi = false;
 function commitDrop(p) {
   if (S.stage === 3) place(p);
   else if (held()) { placePiece([p.x, p.y, p.z], p.snap); ghost.visible = false; render(); }
 }
-dropBar.addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  const p = pending && pending.p; setPending(null);
-  if (b.dataset.drop === 'ok' && p && placing()) commitDrop(p); else ghost.visible = false;
-});
 renderer.domElement.addEventListener('pointerdown', ev => {
   if (ev.pointerType !== 'touch') return;
   touches.add(ev.pointerId);
-  if (touches.size > 1) { multi = true; downAt = null; ghost.visible = !!pending; } // 두 손가락: 화면 돌리기·확대만
+  if (touches.size > 1) { multi = true; downAt = null; ghost.visible = false; } // 두 손가락: 지도 옮기기·확대만
 }, { capture: true });
 for (const t of ['pointerup', 'pointercancel']) renderer.domElement.addEventListener(t, ev => {
   if (ev.pointerType !== 'touch') return;
@@ -619,13 +565,25 @@ renderer.domElement.addEventListener('pointermove', ev => {
   ghost.visible = !!p;
   if (p) { setGhost(p.size, S.stage === 3 ? null : held()); ghost.position.set(p.x + sim.gx, p.y, p.z + sim.gz); ghostMat.color.set(0xb8923a); ghostMat.opacity = 0.45; }
 });
-renderer.domElement.addEventListener('pointerleave', () => { if (!pending) ghost.visible = false; });
+renderer.domElement.addEventListener('pointerleave', () => { ghost.visible = false; });
 const placing = () => !S.testing && !S.dirty && (S.stage === 3 ? !S.pick : !!held());
-function syncControls() { // 놓는 중에는 왼쪽 드래그/한 손가락 = 부재 옮기기, 오른쪽 드래그/두 손가락 = 시점
+// 시점: 부재를 들고 있으면 왼쪽 드래그/한 손가락 = 부재 옮기기. 들고 있지 않으면 왼쪽 드래그 = 지도(시점 중심) 옮기기.
+// 오른쪽 드래그 = 돌려 보기, 휠 = 확대. 손가락: 한 손가락 = 돌려 보기(놓는 중엔 부재), 두 손가락 = 옮기기 + 벌려 확대.
+function syncControls() {
   const on = placing();
-  controls.mouseButtons.LEFT = on ? null : THREE.MOUSE.ROTATE; controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
-  controls.touches.ONE = on ? null : THREE.TOUCH.ROTATE; controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
+  controls.mouseButtons.LEFT = on ? null : THREE.MOUSE.PAN; controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE; controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+  controls.touches.ONE = on ? null : THREE.TOUCH.ROTATE; controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 }
+controls.screenSpacePanning = false; // 땅과 나란히 옮긴다
+// 탑이 화면 밖으로 완전히 나가지 않게: 시점 중심을 탑 둘레(카메라 거리의 32%, 최소 4·최대 12) 안으로 묶고 높이도 제한한다
+controls.addEventListener('change', () => {
+  const t = controls.target, d = camera.position.distanceTo(t), max = Math.min(12, Math.max(4, d * 0.32));
+  const r = Math.hypot(t.x, t.z); let dx = 0, dz = 0, dy = 0;
+  if (r > max) { dx = t.x * (max / r - 1); dz = t.z * (max / r - 1); }
+  const H = Math.max(3.2, (sim && sim.height()) || 0) + 2;
+  if (t.y < 0.3) dy = 0.3 - t.y; else if (t.y > H) dy = H - t.y;
+  if (dx || dy || dz) { t.x += dx; t.y += dy; t.z += dz; camera.position.x += dx; camera.position.y += dy; camera.position.z += dz; }
+});
 renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
 renderer.domElement.addEventListener('pointerdown', ev => { downAt = ev.button === 0 && !(ev.pointerType === 'touch' && multi) ? [ev.clientX, ev.clientY] : null; });
 renderer.domElement.addEventListener('pointerup', ev => {
@@ -635,7 +593,6 @@ renderer.domElement.addEventListener('pointerup', ev => {
   if (S.dirty) { rebuild(); render(); banner('탑을 다시 세웠습니다', '#fff'); return; }
   if (S.stage === 3 && S.pick) return pickUp(ev);
   const p = planAt(ev); if (!p) return;
-  if (ev.pointerType === 'touch') { setPending(p, ev); return; } // 손가락: 바로 놓지 않고 확인 버튼으로
   commitDrop(p);
 });
 function place(p) {
@@ -662,12 +619,29 @@ function pickUp(ev) { // 셋째 마당: 놓인 부재를 집어 다시 들기
   S.sel.mat = it.mat; S.sel.shape = it.shape; S.rot = it.rot ? 1 : 0; S.pick = false;
   rebuild(); render(); banner('부재를 집었습니다. 놓을 곳을 누르세요', '#fff');
 }
+const typing = t => t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || S.testing) return;
-  if (S.stage === 3 && (e.key === 'r' || e.key === 'R')) { S.rot ^= 1; render(); }
+  if (typing(e.target) || e.altKey) return;
+  // R: 지금 마당을 처음 상태로(지진 중이어도 바로). 묻지 않는다.
+  if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.repeat && !sheetKind && !leafletOpen()) { e.preventDefault(); resetStage(); return; }
+  if (S.testing) return;
+  if (S.stage === 3 && (e.key === 't' || e.key === 'T')) { S.rot ^= 1; render(); }
   if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
 });
 $('#quickUndo').addEventListener('click', () => { if (!S.testing) undo(); });
+$('#resetBtn').addEventListener('click', () => resetStage());
+const CAM0 = { pos: [12, 8.5, 14], target: [0, 3.2, 0] };
+function resetCamera() { controls.enableDamping = false; controls.update(); camera.position.set(...CAM0.pos); controls.target.set(...CAM0.target); controls.update(); controls.enableDamping = true; } // 남은 관성을 먼저 비운다
+// 처음 상태로: 놓은 부재를 모두 치우고, 지진을 멈추고, 시점을 처음 자리로
+function resetStage() {
+  if (sim.quake) sim.stopQuake();
+  showCaption('');
+  S.testing = false; S.last = null; S.crit = null; S.pick = false; S.dirty = false;
+  if (S.stage === 3) { S.design = []; S.example = null; } else resetAsm(S.stage);
+  if (S.stage === 2) S.era = 'baekje';
+  rebuild(); resetCamera(); render();
+  banner('처음 상태로 되돌렸습니다', '#fff');
+}
 function undo() {
   if (S.stage === 3) S.design.pop(); else { asm().placed.pop(); asm().lastSnap = null; }
   rebuild(); render();
@@ -676,25 +650,37 @@ function undo() {
 // ---------- UI: 오른쪽 판(panel), 아래 지진 조작판(dock), 왼쪽 도구판(tools) ----------
 const HAN = '一二三四五六七';
 const dis = () => S.testing ? 'disabled' : '';
-const records = (rows, empty) => rows.length ? `<div class="records">${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>지진 세기 ${Number(v).toFixed(1)}</b></div>`).join('')}</div>` : `<p class="note">${empty}</p>`;
+const records = (rows, empty) => rows.length ? `<div class="records">${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${Number(v).toFixed(2)}</b></div>`).join('')}</div>` : `<p class="note">${empty}</p>`;
+// 재해 고르기 판을 접고 펼친 상태(이 기기에 기억)
+let dockOpen = true;
+try { dockOpen = localStorage.getItem('baekje-dock-open') !== '0'; } catch { /* 저장소 없음 */ }
+const LOCK_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const dIcon = (k, px = 22) => `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${DISASTERS[k].icon}"/></svg>`;
 function dockHTML() {
-  const A = S.stage !== 3 && asm(), lockMsg = S.stage === 1 && A.placed.length < A.plan.length ? `탑을 다 세우면 지진 시험대가 열립니다 · 남은 부재 ${A.plan.length - A.placed.length}개`
-    : S.stage === 2 && !A.placed.length ? '부재를 하나 이상 놓으면 지진 시험대가 열립니다' : '';
-  if (lockMsg) {
-    return `<div class="locked"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>${lockMsg}</div>`;
-  }
-  const L = S.last && !S.testing ? `<p class="result">${S.last.collapsed ? `지진 세기 <b>${S.last.collapseMag.toFixed(1)}</b>에서 무너졌어요${S.last.reason === 'top' ? ' · 꼭대기 돌이 떨어졌어요' : S.last.reason === 'pieces' ? ' · 돌 세 개 이상이 빠졌어요' : ' · 탑의 많은 부분이 쓰러졌어요'}` : `지진 세기 <b>${S.last.survived.toFixed(1)}</b>까지 버텼어요!`}${S.ev.breaks ? ` · 부러진 목재 ${Math.ceil(S.ev.breaks)}` : ''}${S.ev.joints ? ` · 풀린 결구 ${S.ev.joints}` : ''}</p>` : '';
+  // 첫째·확장 마당: 부재를 모두 놓아야 재해 시험이 열린다. 창작 마당(정해진 부재 수 없음): 하나라도 놓으면.
+  const A = S.stage !== 3 && asm(), left = A ? A.plan.length - A.placed.length : 0;
+  const lockMsg = S.stage !== 3 ? (left > 0 ? `모든 부재를 놓으면 재해 시험을 할 수 있어요 · 남은 부재 ${left}개` : '') : !S.design.length ? '부재를 하나라도 놓으면 재해 시험을 할 수 있어요' : '';
+  if (lockMsg && !S.testing) return `<div class="locked">${LOCK_SVG}${lockMsg}</div>`;
+  const Lr = S.last, D = DISASTERS[S.disaster], ld = Lr && DISASTERS[Lr.kind || 'quake'].name;
+  const why = Lr && (Lr.reason === 'top' ? ' · 꼭대기 돌이 떨어졌어요' : Lr.reason === 'pieces' ? ' · 돌 두 개 이상이 빠졌어요' : ' · 탑의 많은 부분이 쓰러졌어요');
+  const head = Lr && (Lr.collapsed ? `${ld} 세기 <b>${Lr.collapseMag.toFixed(2)}</b>에서 무너지기 시작했어요${why}` : Lr.score != null ? `${ld} 세기 <b>${Lr.score.toFixed(2)}</b>까지 모두 버텼어요! 만점` : `${ld} 시험을 멈췄어요`);
+  const L = Lr && !S.testing ? `<p class="result">${head}${Lr.score != null ? ` · <span class="score">점수 <b>${Lr.score.toFixed(2)}</b></span>` : ''}${S.ev.breaks ? ` · 부러진 목재 ${Math.ceil(S.ev.breaks)}` : ''}${S.ev.joints ? ` · 풀린 결구 ${S.ev.joints}` : ''}</p>` : '';
+  const live = S.testing ? `<p class="live" aria-live="off">${D.name} 시험 중 · 세기 <b id="liveMag">${(sim.mag || 0).toFixed(2)}</b></p>` : '';
+  const rec = D.record ? `<a href="${D.record.url}" target="_blank" rel="noopener">${D.record.when}, ${D.record.text}</a> <small>삼국사기 백제본기</small>` : '<small>게임 연출</small>';
+  const tg = `<button class="dock-tg" data-act="dock" aria-expanded="${dockOpen}" aria-controls="magBody">${dockOpen ? '접기' : '펼치기'}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="${dockOpen ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}"/></svg></button>`;
   return `<div class="dock-in">
-    <div class="mag">
-      <label for="mag" class="maglab"><span>${S.testing ? (sim.quake && sim.quake.mode === 'ramp' ? '한계 도전 중 · 왼쪽 위 숫자가 점점 커져요' : '지진 시험 중') : '지진 세기 고르기'}</span><span><b id="magBig">${S.mag.toFixed(1)}</b> <span id="magWord">${qword(S.mag)[1]}</span></span></label>
-      <input id="mag" type="range" min="1" max="7" step="0.5" value="${S.mag}" ${dis()}>
-      <div class="ticks">${[1, 2, 3, 4, 5, 6, 7].map(c => `<span>${c}</span>`).join('')}</div>
-      <p class="qdesc" id="magDesc">${qword(S.mag)[2]} <small>(게임 속 단계예요. 실제 지진 규모와는 달라요)</small></p>
-      ${L}
+    <div class="mag${dockOpen ? '' : ' closed'}">
+      <div class="dock-h"><b id="magTtl">재해 고르기 <span class="dsel">${D.name}</span></b>${tg}</div>
+      <div id="magBody" ${dockOpen ? '' : 'hidden'}>
+        <div class="dpick" role="radiogroup" aria-label="재해 고르기">${DKEYS.map(k => `<button role="radio" data-dis="${k}" aria-checked="${S.disaster === k}" ${dis()}>${dIcon(k)}<span>${DISASTERS[k].name}</span></button>`).join('')}</div>
+        <p class="qdesc">${D.idea}</p>
+        <p class="drec">${rec}</p>
+      </div>
+      ${live}${L}
     </div>
     <div class="acts">
       ${S.testing ? '<button class="btn line" data-act="stop">시험 멈추기</button>'
-        : `<button class="btn red" data-act="fixed">지진 시험<small>고른 세기로 8초 흔들기</small></button><button class="btn line" data-act="ramp">한계 도전<small>1부터 점점 세게</small></button>${S.dirty ? '<button class="btn pat" data-act="rebuild">다시 세우기</button>' : ''}`}
+        : `<button class="btn red" data-act="ramp">${D.name} 시험<small>세기 ${RAMP.FROM.toFixed(2)}→${RAMP.TO.toFixed(2)} · 무너진 세기가 점수</small></button>${S.dirty ? '<button class="btn pat" data-act="rebuild">다시 세우기</button>' : ''}`}
     </div></div>`;
 }
 function toolsHTML() {
@@ -702,26 +688,24 @@ function toolsHTML() {
   return `<span class="tl">자재</span>${Object.keys(MATERIALS).map(id => `<button class="tbtn mat" data-mat="${id}" aria-pressed="${S.sel.mat === id}" title="${MAT_INFO[id].note}"><i style="background:${MAT_INFO[id].sw}"></i>${MATERIALS[id].name}</button>`).join('')}
     <span class="tl">모양</span>${Object.entries(SHAPES).filter(([, s]) => !s.real).map(([id, s]) => `<button class="tbtn" data-shape="${id}" aria-pressed="${S.sel.shape === id}">${s.name}</button>`).join('')}
     ${Object.values(REAL).map(t => `<span class="tl">${t.name}</span>${Object.keys(t.parts).map(part => `<button class="tbtn real" data-shape="p_${part}" aria-pressed="${S.sel.shape === 'p_' + part}">${PART_NAMES[part]}</button>`).join('')}`).join('')}
-    <button class="tbtn" data-act="rot" aria-pressed="${!!S.rot}" aria-label="90도 돌리기 (R)" title="90도 돌리기 (R)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v5h-5"/></svg></button>
+    <button class="tbtn" data-act="rot" aria-pressed="${!!S.rot}" aria-label="90도 돌리기 (T)" title="90도 돌리기 (T)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v5h-5"/></svg></button>
     <button class="tbtn pick" data-act="pick" aria-pressed="${!!S.pick}" title="놓인 부재를 집어 옮기기">옮기기</button>
     <button class="tbtn" data-act="undo" aria-label="되돌리기" title="되돌리기 (Ctrl+Z)" ${S.design.length ? '' : 'disabled'}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>`;
 }
-// 지진 세기를 중학생 눈높이의 말로(게임 속 1~7 단계, 실제 규모·진도와는 다름)
-const QWORD = [[1, '살짝', '매달린 물건이 조금 흔들려요'], [2, '약함', '집 안에 있으면 흔들림을 느껴요'], [3, '중간', '그릇과 창문이 달그락거려요'],
-  [4, '강함', '걷기 어렵고 물건이 떨어져요'], [5, '매우 강함', '서 있기 힘들고 벽에 금이 가요'], [6, '아주 강함', '약한 건물이 무너지기 시작해요'], [7, '최강', '튼튼한 건물도 크게 다칠 수 있어요']];
-const qword = m => QWORD[Math.max(0, Math.min(6, Math.floor(m + 1e-6) - 1))];
 const facts = rows => `<dl class="facts2">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
 const tips = (h, list) => `<div class="tips"><h3>${h}</h3><ul>${list.map(t => `<li>${t}</li>`).join('')}</ul></div>`;
 const head = (small, big) => `<div class="ttl"><span>${small}</span><h2>${big}</h2></div>`;
 const spirit = (h, t) => `<div class="spirit"><b>${h}</b><p>${t}</p></div>`;
-// ---------- 실제 탑 일러스트 (public/pagoda-*.svg, 실물 사진의 비례를 따라 그림) ----------
+// ---------- 실제 탑 사진: 국가유산청 국가유산포털, 공공누리 제1유형(출처 표시). public/photos/, 원본 페이지는 CLAUDE.md ----------
+const KOGL1 = '사진: 국가유산청 국가유산포털 (공공누리 제1유형)';
 const PHOTOS = {
-  jeong: { src: 'pagoda-jeongnimsa.svg', name: '부여 정림사지 오층석탑', note: '국보 · 7세기 백제 · 지금도 그 자리에 서 있는 실물', ref: '정림사지_오층석탑_정면.jpg', by: '국가유산청' },
-  mireuk: { src: 'pagoda-mireuksa.svg', name: '익산 미륵사지 석탑', note: '국보 · 백제 무왕 639년 · 우리나라에서 가장 오래되고 큰 석탑, 6층까지 남음', url: 'https://www.heritage.go.kr', by: '국가유산청' },
-  neung: { src: 'pagoda-neungsa.svg', name: '능사 오층목탑 (재현)', note: '능사지 목탑은 남아 있지 않아, 부여 백제문화단지에 발굴 자료로 재현한 탑을 그렸습니다', ref: 'Korea-5th-tower.jpg', by: 'Pediagaller' },
+  jeong: { src: 'photos/jeongnimsa.jpg', w: 720, h: 1080, name: '부여 정림사지 오층석탑', note: '국보 · 7세기 백제 · 지금도 그 자리에 서 있는 실물', alt: '부여 정림사지 오층석탑 정면 사진(2015년 촬영)',
+    url: 'https://www.heritage.go.kr/heri/cul/culSelectDetail.do?pageNo=1_1_1_0&ccbaKdcd=11&ccbaAsno=0000090000000&ccbaCtcd=34&ccbaCpno=1113400090000', credit: KOGL1 },
+  mireuk: { src: 'photos/mireuksa.jpg', w: 900, h: 628, name: '익산 미륵사지 석탑', note: '국보 · 백제 무왕 639년 · 우리나라에서 가장 오래되고 큰 석탑, 6층까지 남음', alt: '2019년 보수를 마친 익산 미륵사지 석탑을 동북쪽에서 본 사진',
+    url: 'https://www.heritage.go.kr/heri/cul/culSelectDetail.do?pageNo=1_1_1_0&ccbaKdcd=11&ccbaAsno=0000110000000&ccbaCtcd=35&ccbaCpno=1113500110000', credit: KOGL1 },
 };
-const photo = (k, sm) => { const p = PHOTOS[k], page = p.url || 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(p.ref);
-  return `<figure class="real${sm ? ' sm' : ''}"><img src="${p.src}" alt="${p.name} 일러스트"><figcaption><b>${p.name}</b>${sm ? '' : `<span>${p.note}</span>`}<small>일러스트 · ${p.url ? '참고' : '참고 사진'} <a href="${page}" target="_blank" rel="noopener">${p.by}</a></small></figcaption></figure>`; };
+const photo = (k, sm) => { const p = PHOTOS[k];
+  return `<figure class="real photo${sm ? ' sm' : ''}"><img src="${p.src}" width="${p.w}" height="${p.h}" alt="${p.alt}" loading="lazy" decoding="async"><figcaption><b>${p.name}</b>${sm ? '' : `<span>${p.note}</span>`}<small class="credit"><a href="${p.url}" target="_blank" rel="noopener">${p.credit}</a></small></figcaption></figure>`; };
 const seg = (items, attr, cur) => `<div class="seg" style="grid-template-columns:repeat(${items.length},minmax(0,1fr))">${items.map(([id, n]) => `<button data-${attr}="${id}" aria-pressed="${cur === id}" ${dis()}>${n}</button>`).join('')}</div>`;
 // 다음 부재 미리보기: isometric drawing of each upcoming piece, true to its proportions
 const MAT_FACE = { granite: ['#c9c7c0', '#a9a7a0', '#8b8982'], pine: ['#ddb27a', '#c99a62', '#a87c48'], brick: ['#a8a499', '#8f8b80', '#77736a'], tile: ['#8a9196', '#687075', '#535a5e'], gold: ['#e3c26a', '#c9a23f', '#a8842c'] };
@@ -777,25 +761,24 @@ function panelHTML() {
     return head('확장 마당 · 전북 익산', '미륵사지 석탑') + photo('mireuk')
       + `<p class="lead">정림사지에서 배운 쌓기 방법을 다른 백제 석탑에도 써 보는 <b>확장 마당</b>이에요.</p>`
       + facts([['어디', '전북 익산 미륵사지'], ['언제', '639년, 백제 무왕 때'], ['특징', '우리나라에서 가장 오래되고 가장 큰 석탑'], ['남은 층', '6층 (원래 9층으로 봐요)'], ['문화유산', '국보']])
-      + asmBox(!ready ? `<button class="btn pat" data-act="autostep" ${dis()}>이 단계 자동으로</button>` : '') + lessonHTML()
+      + asmBox(!ready ? `<button class="btn pat" data-act="autostep" ${dis()}>이 단계 자동으로</button>` : '')
       + `<h3>쌓는 순서</h3><ol class="steps">${TUT.map(([t, d], i) => `<li class="${i < S.tut.done ? 'done' : i === S.tut.done ? 'now' : ''}"><i>${i + 1}</i><span>${t}${i === S.tut.done ? `${i < TUT.length - 1 ? ` <b class="cnt">${stepCount(i)}</b>` : ''}<small>${d}</small>` : ''}</span></li>`).join('')}</ol>`
       + `<h3>돌을 어떻게 이을까?</h3>` + seg(Object.entries(JOINT_INFO).map(([id, [n]]) => [id, n]), 'kind', k) + `<p class="note">${JOINT_INFO[k][1]}</p>`
       + tips('알아 두면 좋아요', ['나무로 짓던 탑을 돌로 그대로 옮겼어요. 그래서 돌기둥, 문, 지붕 모양이 나무 건물을 닮았어요.', '2009년 탑 한가운데 돌(심주석)에서 "639년에 세웠다"는 금판 기록이 나왔어요.', '무너질 위험이 있어 2001년부터 해체해 고치고, 2019년에 다시 세웠어요.'])
-      + `<div class="row"><button class="btn line" data-act="leaflet" aria-haspopup="dialog">미륵사지 리플렛</button><button class="btn line" data-act="heritage" aria-haspopup="dialog">국가유산 안내</button></div>`
+      + `<div class="row"><button class="btn line" data-act="leaflet" aria-haspopup="dialog">미륵사지 리플렛</button></div>`
       + disasterHTML()
-      + `<h3>이음별 최고 기록</h3>${records(Object.entries(REC.s1).map(([id, v]) => [JOINT_INFO[id][0], v]), '세 가지 이음으로 각각 한계 도전을 해 보세요.')}`;
+      + `<h3>재해·이음별 최고 기록</h3>${records(Object.entries(REC.s1).filter(([k]) => k.includes('|')).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => { const [d, j] = k.split('|'); return [`${DISASTERS[d] ? DISASTERS[d].name : d} · ${JOINT_INFO[j] ? JOINT_INFO[j][0] : j}`, v]; }), '세 가지 이음으로 여러 재해 시험을 해 보세요.')}<div id="boardSlot"></div>`;
   }
   if (S.stage === 2) {
     const era = S.era || 'baekje';
     return head('첫째 마당 · 충남 부여', '정림사지 오층석탑') + photo('jeong')
       + facts([['어디', '충남 부여 정림사지'], ['언제', '백제 사비 시대(600년대 무렵)'], ['재료', '화강암 149개를 짜 맞춤'], ['높이', '약 8.3m (아파트 3층쯤)'], ['문화유산', '국보']])
-      + asmBox(`<button class="btn pat" data-act="autoall" ${dis()}>남은 부재 자동으로</button>`) + lessonHTML()
+      + asmBox(`<button class="btn pat" data-act="autoall" ${dis()}>남은 부재 자동으로</button>`)
       + tips('왜 1,400년을 버텼을까?', ['<b>나무 탑을 돌로</b> 옮겼어요. 모서리 기둥은 나무 기둥, 얇은 지붕돌은 기와지붕을 닮았어요.', '<b>지붕돌이 얇고 넓어서</b> 위가 가볍고, 무게중심이 아래에 있어요.', '<b>위로 갈수록 조금씩 작아져서</b> 흔들려도 쓰러지지 않아요.'])
       + `<div class="spirit"><b>검이불루 화이불치</b><p>검소하지만 초라하지 않고, 화려하지만 지나치지 않다.<br>백제 사람들이 아름답다고 여긴 기준이에요. 이 탑도 꼭 필요한 만큼만 쌓아서 단단해요.</p></div>`
       + `<h3>정림사지 둘러보기</h3>${seg([['baekje', '백제 때'], ['today', '오늘날'], ['future', '미래 복원']], 'era', era)}<p class="note">${era === 'future' ? '정림사지박물관의 복원 계획을 참고해 중문·회랑·2층 금당·강당·승방을 다시 세워 봤어요. 게임 속 모습이라 실제 설계와 다를 수 있어요.' : era === 'today' ? '지금은 금당과 회랑 자리에 터만 남았어요. 강당 자리에는 석조여래좌상을 모신 건물(1993)이 있고, 가까이에 정림사지박물관(2006)이 있어요.' : '남쪽부터 중문 → 석탑 → 금당 → 강당이 한 줄로 서 있었어요. 둘레를 회랑(지붕 덮인 복도)이 감쌌고, 중문 앞에 연못 두 개가 있었어요.'}</p>`
-      + `<div class="row"><button class="btn line" data-act="leaflet" aria-haspopup="dialog">정림사지 리플렛</button><button class="btn line" data-act="heritage" aria-haspopup="dialog">국가유산 안내</button><button class="btn line" data-act="gojeung" aria-haspopup="dialog">고증 노트</button></div>`
       + disasterHTML()
-      + `<h3>최고 기록</h3>${records(Object.entries(REC.s2).sort((a, b) => b[1] - a[1]).slice(0, 5), '아직 기록이 없어요. 지진 시험을 해 보세요.')}`;
+      + `<h3>재해별 최고 기록</h3>${records(DKEYS.filter(k => REC.s2[k]).map(k => [DISASTERS[k].name, REC.s2[k]]), '아직 기록이 없어요. 재해 시험을 해 보세요.')}<div id="boardSlot"></div>`;
   }
   const st = sim.stats(), T = st.total || 1;
   const crit = S.crit ? critHTML(S.crit)
@@ -804,8 +787,8 @@ function panelHTML() {
     + `<div class="facts"><div><span>부재</span><b>${S.design.length}</b></div><div><span>높이</span><b>${st.height.toFixed(1)}m</b></div><div><span>무게중심</span><b>${st.height ? Math.round(st.comY / st.height * 100) : 0}%</b></div></div>`
     + `<h3>자재 비율 (무게)</h3><div class="bars">${Object.keys(MATERIALS).map(id => `<div class="bar"><span>${MATERIALS[id].name}</span><div class="track"><div style="width:${st.byMat[id] / T * 100}%;background:${MAT_INFO[id].sw}"></div></div><span>${Math.round(st.byMat[id] / T * 100)}%</span></div>`).join('')}</div>`
     + `<h3>백제와 충청의 탑</h3><p class="note">백제 시대 석탑으로 오늘까지 남은 익산 미륵사지 석탑과 부여 정림사지 오층석탑은 이 마당에서 어떤 지진에도 무너지지 않습니다. 나머지 충청 예시 탑은 일부러 무너지게 했습니다(무량사·남매탑·팔상전은 고려·조선 때 지은 탑으로 실제로는 지금도 서 있습니다).</p><div class="ex-grid">${Object.entries(EXAMPLES).filter(([, e]) => !e.world).map(([k, e]) => `<button class="ex" data-ex="${k}" aria-pressed="${S.example === k}" ${dis()}>${e.img ? `<img src="${e.img}" alt="">` : e.world ? `<span class="ex-world" aria-hidden="true">${e.breakAt.toFixed(1)}</span>` : '<span class="ex-mix" aria-hidden="true"></span>'}<b>${e.name}</b><small>${e.tag}</small></button>`).join('')}</div><h3>세계의 탑 · 실제 크기</h3><p class="note">정림사지 오층석탑(8.33m)과 같은 비율로 지은 세계의 탑입니다. 숫자는 이 게임에서 무너지기 시작하는 지진 세기로, 낮은 것부터 차례로 쓰러집니다(게임 속 설정이며 실제 내진 성능과는 다릅니다). 큰 탑은 마우스 휠로 멀리 보세요.</p><div class="ex-grid">${Object.entries(EXAMPLES).filter(([, e]) => e.world).map(([k, e]) => `<button class="ex" data-ex="${k}" aria-pressed="${S.example === k}" ${dis()}>${e.img ? `<img src="${e.img}" alt="">` : e.world ? `<span class="ex-world" aria-hidden="true">${e.breakAt.toFixed(1)}</span>` : '<span class="ex-mix" aria-hidden="true"></span>'}<b>${e.name}</b><small>${e.tag}</small></button>`).join('')}</div>`
-    + `<div class="row"><button class="btn line" data-act="heritage" aria-haspopup="dialog">국가유산 안내</button><button class="btn line" data-act="clear" ${S.design.length && !S.testing ? '' : 'disabled'}>모두 지우기</button></div>`
-    + `<h3>내진 기록 순위</h3>${records(REC.s3.map(r => [`${r.t} · 부재 ${r.n}`, r.m]), '한계 도전을 마치면 기록이 남습니다.')}`;
+    + `<div class="row"><button class="btn line" data-act="clear" ${S.design.length && !S.testing ? '' : 'disabled'}>모두 지우기</button></div>`
+    + `<h3>내진 기록 순위</h3>${records(REC.s3.map(r => [`${r.t} · 부재 ${r.n}`, r.m]), '지진 시험을 마치면 기록이 남습니다.')}`;
 }
 // 비평 + 진단 근거(로그 원값) + 검증 배지
 function critHTML(c) {
@@ -831,7 +814,7 @@ function critHTML(c) {
 //  1) 문장(. ? !)마다 span.sent 블록: 화면 크기와 상관없이 문장이 끝나면 다음 줄로.
 //  2) 긴 문장은 쉼표 뒤 의미 단위를 span.ph로 묶는다: PC(768px 이상)는 inline-block이라 쉼표 자리에서 줄이 바뀌고,
 //     모바일은 inline이라 강제 개행 없이 화면 너비대로 흐른다.
-const PROSE = '.note, .spirit p, .tech, .steps small, #critique p, .hcard li, .hgame, .hwhere, .gj li, .lesson-box p, .result, .locked, .sheet p, .sheet li, .holding';
+const PROSE = '.note, .spirit p, .tech, .steps small, #critique p, .gj li, .result, .locked, .sheet p, .sheet li, .holding';
 function sentenceNode(text) {
   const sp = document.createElement('span'); sp.className = 'sent';
   const phrases = text.length > 26 ? text.split(/(?<=,)\s+/) : [text];
@@ -852,17 +835,17 @@ function breakSentences(root) {
     }
   }
 }
+// 이 기기 최고 기록(온라인 순위에 연결되지 않았을 때 순위판에 보여 준다): 마당·재해별
+const localBest = (st, dis = S.disaster) => st === 1 ? Math.max(0, ...Object.entries(REC.s1).filter(([k]) => k.startsWith(dis + '|')).map(([, v]) => v)) : st === 2 ? REC.s2[dis] || 0 : Math.max(0, ...REC.s3.map(r => r.m));
 function render() {
-  if (pending && (S.testing || S.dirty || !placing())) setPending(null);
   if (S.stage !== 3) { const A = asm(); if (S.stage === 1) S.tut.done = A.placed.length >= A.plan.length ? TUT.length - 1 : A.plan[A.placed.length].step; }
   const it = held();
-  $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : it ? `${it.name}을(를) 끌어 제자리를 찾아 떼면 놓입니다 · 시점: 오른쪽 드래그 또는 두 손가락` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · R: 돌리기 · 시점: 오른쪽 드래그') : '드래그: 돌려 보기 · 휠/두 손가락: 확대';
+  $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : it ? `${it.name}을(를) 끌어 제자리에서 떼면 놓입니다 · 오른쪽 드래그: 돌려 보기 · R: 처음부터` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · T: 돌리기 · 오른쪽 드래그: 돌려 보기') : '왼쪽 드래그: 지도 옮기기 · 오른쪽 드래그: 돌려 보기 · 휠: 확대 · R: 처음부터';
   showTarget(); syncControls();
   { const can = !S.testing && (S.stage === 3 ? S.design.length > 0 : asm().placed.length > 0); const q = $("#quickUndo"); q.disabled = !can; q.hidden = S.stage !== 3 && !asm().placed.length && !S.testing; }
   document.querySelectorAll('#tabs a').forEach(b => b.setAttribute('aria-current', b.dataset.stage == S.stage ? 'step' : 'false'));
-  const best = S.stage === 1 ? Math.max(0, ...Object.values(REC.s1)) : S.stage === 2 ? Math.max(0, ...Object.values(REC.s2)) : Math.max(0, ...REC.s3.map(r => r.m));
-  $('#best').textContent = best ? `지진 세기 ${best.toFixed(1)}` : '없음';
   panel.innerHTML = panelHTML();
+  const slot = panel.querySelector('#boardSlot'); if (slot) { slot.replaceWith(boardEl); showBoard(S.stage, localBest, S.disaster); } // 순위판은 다시 그리지 않고 옮겨 붙인다(입력 중인 닉네임 유지)
   $('#dock').innerHTML = dockHTML();
   breakSentences(panel); breakSentences($('#dock'));
   const nx = $('#next'); nx.innerHTML = nextHTML(); nx.hidden = S.stage === 3;
@@ -872,8 +855,9 @@ function render() {
 
 const ui = $('#ui');
 ui.addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  const b = e.target.closest('button'); if (!b || b.disabled || e.composedPath().includes(boardEl)) return; // 순위판은 스스로 다시 그린다(누른 단추가 이미 떨어져 나갔을 수 있다)
   const d = b.dataset;
+  if (d.act === 'dock') { dockOpen = !dockOpen; try { localStorage.setItem('baekje-dock-open', dockOpen ? '1' : '0'); } catch { /* 저장소 없음 */ } }
   if (d.kind) { S.tut.kind = d.kind; S.last = null; resetAsm(1); rebuild(); }
   if (d.kind2) { S.s2.kind = d.kind2; S.last = null; resetAsm(2); rebuild(); }
   if (d.s2m) { Object.assign(S.s2, HIST, d.s2m === 'ornate' ? ORNATE : {}); S.last = null; resetAsm(2); rebuild(); }
@@ -886,12 +870,11 @@ ui.addEventListener('click', e => {
   if (a === 'autostep') autoPlace(S.tut.done);
   if (a === 'autoall') autoPlace();
   if (a === 'pick') S.pick = !S.pick;
-  if (a === 'fixed' || a === 'ramp') { if (!sess().quiz.pre) return openSheet('quiz-pre', a); startTest(a); }
-  if (a === 'gojeung') return openSheet('gojeung');
-  if (a === 'heritage') return openSheet('heritage');
+  if (d.dis && !S.testing) { S.disaster = d.dis; try { localStorage.setItem('baekje-disaster', d.dis); } catch { /* 저장소 없음 */ } showBoard(S.stage, localBest, d.dis); }
+  if (a === 'ramp') { if (!sess().quiz.pre) return openSheet('quiz-pre', a); startTest(a); }
   if (a === 'leaflet') return stageLeaflet(true);
   if (a === 'why') return openSheet('why');
-  if (a === 'stop') { sim.quake.done = true; return; }
+  if (a === 'stop') { sim.quake.done = true; sim.quake.aborted = !sim.quake.collapsed; return; } // 도중에 멈추면 점수 없음
   if (a === 'rebuild') rebuild();
   if (a === 'hist') { Object.assign(S.s2, HIST); resetAsm(2); rebuild(); }
   if (a === 'rot') S.rot ^= 1;
@@ -902,7 +885,7 @@ ui.addEventListener('click', e => {
 });
 ui.addEventListener('input', e => {
   const t = e.target;
-  if (t.id === 'mag') { S.mag = +t.value; $("#magBig").textContent = S.mag.toFixed(1); const q = qword(S.mag); $('#magWord').textContent = q[1]; $('#magDesc').firstChild.textContent = q[2] + ' '; }
+  // (지진 세기 막대는 재해 고르기로 바뀌어 없다)
   if (t.dataset.p && t.type === 'range') { S.s2[t.dataset.p] = +t.value; $('#o-' + t.dataset.p).textContent = t.value + (t.dataset.p === 'taper' ? '' : '×'); }
 });
 ui.addEventListener('change', e => {
@@ -977,9 +960,9 @@ function recordTrial(st, res, diag) {
   const T = st.total || 1, pct = v => Math.round(v / T * 100), s = sess();
   s.trials.push({
     attempt: s.trials.length + 1, stage: S.stage, stageName: STAGE_NAME[S.stage], at: new Date().toISOString(),
-    mode: res.mode === 'ramp' ? '한계 도전' : `고정 ${res.mag.toFixed(1)}`,
+    mode: res.mode === 'ramp' ? `${DISASTERS[res.kind || 'quake'].name} 시험` : `고정 ${res.mag.toFixed(1)}`,
     materialMix: { 화강암: pct(st.byMat.granite), 소나무: pct(st.byMat.pine), 문양전: pct(st.byMat.brick) },
-    maxSurvived: res.survived || 0, collapsed: res.collapsed,
+    maxSurvived: res.score ?? res.survived ?? 0, disaster: res.kind || 'quake', collapsed: res.collapsed,
     cause: diag.primary, causeLabel: CAT[diag.primary],
   });
   saveLearn();
@@ -996,7 +979,7 @@ function downloadLearn() {
 }
 // 최대로 버틴 지진 세기 추이 (작은 꺾은선)
 function chartSVG(trials) {
-  if (!trials.length) return '<p class="note">지진 시험을 하면 시도마다 버틴 지진 세기가 여기에 그려집니다.</p>';
+  if (!trials.length) return '<p class="note">재해 시험을 하면 시도마다 점수(무너지기 시작한 세기)가 여기에 그려집니다.</p>';
   const W = 320, H = 128, l = 28, r = 10, t = 10, b = 22, n = trials.length;
   const x = i => n === 1 ? (l + W - r) / 2 : l + i * (W - l - r) / (n - 1), y = v => t + (7 - v) / 7 * (H - t - b);
   const grid = [0, 3.5, 7].map(v => `<line x1="${l}" x2="${W - r}" y1="${y(v)}" y2="${y(v)}" class="lc-grid"/><text x="${l - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join('');
@@ -1004,7 +987,7 @@ function chartSVG(trials) {
   const xs = trials.map((tr, i) => i % every === 0 || i === n - 1 ? `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${tr.attempt}</text>` : '').join('');
   const pts = trials.map((tr, i) => `${x(i).toFixed(1)},${y(tr.maxSurvived).toFixed(1)}`).join(' ');
   const dots = trials.map((tr, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(tr.maxSurvived).toFixed(1)}" r="3.5" class="lc-dot"><title>${tr.attempt}번째 · ${tr.maxSurvived.toFixed(1)}</title></circle>`).join('');
-  return `<svg class="lchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="시도별 최대로 버틴 지진 세기: ${trials.map(tr => tr.maxSurvived.toFixed(1)).join(', ')}">${grid}${xs}${n > 1 ? `<polyline points="${pts}" class="lc-line"/>` : ''}${dots}</svg><p class="note lc-cap">가로: 시도 순서 · 세로: 최대로 버틴 지진 세기(게임 내 값)</p>`;
+  return `<svg class="lchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="시도별 재해 시험 점수: ${trials.map(tr => tr.maxSurvived.toFixed(1)).join(', ')}">${grid}${xs}${n > 1 ? `<polyline points="${pts}" class="lc-line"/>` : ''}${dots}</svg><p class="note lc-cap">가로: 시도 순서 · 세로: 재해 시험 점수(게임 속 세기)</p>`;
 }
 function quizRow(label, a) {
   return `<div class="qa"><span>${label}</span>${a ? `<b class="${a.correct ? 'ok' : 'miss'}">${a.correct ? '○' : '×'} ${esc(a.text)}</b>` : '<b class="none">아직 답하지 않음</b>'}</div>`;
@@ -1012,10 +995,10 @@ function quizRow(label, a) {
 function learnHTML() {
   const s = sess(), tr = s.trials, best = Math.max(0, ...tr.map(t => t.maxSurvived));
   const rows = tr.slice(-8).reverse().map(t => `<tr><td>${t.attempt}</td><td>${t.stageName}</td><td>${t.materialMix.화강암}/${t.materialMix.소나무}/${t.materialMix.문양전}</td><td>${t.maxSurvived ? t.maxSurvived.toFixed(1) : '–'}</td><td>${esc(t.causeLabel)}</td></tr>`).join('');
-  return `${head('지진 시험 기록', '<span id="sheetTtl">학습 기록</span>')}
-    <div class="facts"><div><span>시험</span><b>${tr.length}회</b></div><div><span>최고 지진 세기</span><b>${best ? best.toFixed(1) : '–'}</b></div><div><span>자주 나온 원인</span><b class="sm">${tr.length ? esc(topCause(tr)) : '–'}</b></div></div>
-    <h3>최대로 버틴 지진 세기</h3>${chartSVG(tr)}
-    ${tr.length ? `<div class="tscroll"><table class="trials"><thead><tr><th>#</th><th>마당</th><th>화강암/소나무/문양전 %</th><th>버틴 세기</th><th>원인</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
+  return `${head('재해 시험 기록', '<span id="sheetTtl">학습 기록</span>')}
+    <div class="facts"><div><span>시험</span><b>${tr.length}회</b></div><div><span>최고 점수</span><b>${best ? best.toFixed(1) : '–'}</b></div><div><span>자주 나온 원인</span><b class="sm">${tr.length ? esc(topCause(tr)) : '–'}</b></div></div>
+    <h3>재해 시험 점수</h3>${chartSVG(tr)}
+    ${tr.length ? `<div class="tscroll"><table class="trials"><thead><tr><th>#</th><th>마당</th><th>화강암/소나무/문양전 %</th><th>점수</th><th>원인</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
     <h3>확인 질문 · ${QUIZ.q}</h3>
     ${quizRow('첫 시험 전', s.quiz.pre)}${quizRow('세 번째 시험 후', s.quiz.post)}
     ${s.quiz.pre && s.quiz.post ? `<p class="note">정답: ${esc(QUIZ.choices.find(c => c[0] === QUIZ.answer)[1])}</p>` : !s.quiz.post ? '<p class="note">세 번째 지진 시험을 마치면 같은 질문을 다시 묻습니다.</p>' : ''}
@@ -1031,22 +1014,12 @@ function quizHTML(when) {
     <div class="choices">${QUIZ.choices.map(([id, t]) => `<button class="btn line" data-quiz="${id}">${esc(t)}</button>`).join('')}</div>
     <p class="note">${when === 'pre' ? '지금 생각을 고르면 시험이 시작됩니다. 세 번째 시험 뒤에 같은 질문을 다시 묻고, 두 답을 학습 기록에 나란히 보여 드립니다.' : '세 번 시험해 본 지금은 어떻게 생각하나요? 답은 학습 기록에 남습니다.'}</p>`;
 }
-function gojeungHTML() {
-  const li = a => a.map(t => `<li>${t}</li>`).join('');
-  return `${head('둘째 마당 · 천년의 석탑', '<span id="sheetTtl">고증 노트</span>')}
-    <div class="gj">
-      <section><h3>실제 정림사지 오층석탑</h3><ul>${li(['백제 사비기(7세기 무렵)에 세운 석탑', '국보', '높이 약 8.3m', '2015년 백제역사유적지구로 유네스코 세계유산 등재', '약 1,400년 동안 원래 자리에 서 있음', '목탑의 결구 방식을 돌로 옮긴 양식으로 평가됨'])}</ul></section>
-      <section><h3>게임에서 단순화한 점</h3><ul>${li(['내부 적심석은 생략하고 핵심 부재만 모듈로 나눔', '지진 세기(1.0–7.0)는 실제 규모·진도가 아닌 게임 안의 값', '부재 치수는 실측 비례를 참고한 근사값'])}</ul></section>
-    </div>
-    <p class="note">게임의 지진 시험은 비례와 무게중심의 차이를 보여 주기 위한 모형이며, 실제 탑의 내진 성능을 재현하거나 평가하지 않습니다.</p>
-    <div class="row"><button class="btn pat" data-x="close">닫기</button></div>`;
-}
 const sheet = $('#sheet'), sheetIn = sheet.querySelector('.sheet');
 let sheetKind = null, sheetAfter = null, sheetFocus = null;
 function openSheet(kind, after) {
   if (!sheetKind) sheetFocus = document.activeElement;
   sheetKind = kind; sheetAfter = after || null;
-  sheetIn.innerHTML = kind === 'learn' ? learnHTML() : kind === 'gojeung' ? gojeungHTML() : kind === 'heritage' ? heritageHTML() : kind === 'why' ? whyHTML() : quizHTML(kind === 'quiz-pre' ? 'pre' : 'post');
+  sheetIn.innerHTML = kind === 'learn' ? learnHTML() : kind === 'why' ? whyHTML() : quizHTML(kind === 'quiz-pre' ? 'pre' : 'post');
   breakSentences(sheetIn);
   sheet.hidden = false; sheetIn.focus();
 }
@@ -1069,8 +1042,9 @@ sheet.addEventListener('click', e => {
 });
 addEventListener('keydown', e => { if (e.key === 'Escape' && sheetKind) closeSheet(); });
 
-// ---------- 저사양·키오스크: FPS 측정, 자동 성능 모드(3초 평균 45fps 미만), ?kiosk=1 ----------
-const FPS = { frames: 0, t0: performance.now(), hist: [], cur: 0, since: performance.now(), show: false };
+// ---------- 저사양·키오스크: FPS 측정, 자동 성능 모드(3초 평균 45fps 미만, 버튼 없이 저절로), ?kiosk=1 ----------
+// FPS 숫자는 ?debug=1일 때만 보인다(시험용). 저사양 자동 전환은 늘 켜져 있다.
+const FPS = { frames: 0, t0: performance.now(), hist: [], cur: 0, since: performance.now(), show: DEBUG };
 const PERF = { on: false, auto: true };
 const fpsEl = $('#fps');
 function tickFps(now, gap) {
@@ -1096,18 +1070,13 @@ function setPerf(on) {
 }
 let noticeT;
 function notice(text) { const n = $('#notice'); n.textContent = text; n.classList.add('show'); clearTimeout(noticeT); noticeT = setTimeout(() => n.classList.remove('show'), 6000); }
-function syncXbar() {
-  $('#xbar [data-x="fps"]').setAttribute('aria-pressed', FPS.show);
-  $('#xbar [data-x="perf"]').setAttribute('aria-pressed', PERF.on);
-  fpsEl.hidden = !FPS.show;
-}
+function syncXbar() { fpsEl.hidden = !FPS.show; }
+if (DEBUG) { fpsEl.textContent = '측정 중…'; syncXbar(); }
 $('#xbar').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   const x = b.dataset.x;
   if (x === 'learn') openSheet('learn');
-  if (x === 'heritage') openSheet('heritage');
-  if (x === 'fps') { FPS.show = !FPS.show; fpsEl.textContent = '측정 중…'; syncXbar(); }
-  if (x === 'perf') { PERF.auto = false; setPerf(!PERF.on); notice(PERF.on ? '저사양 모드 켬 · 해상도 1배, 그림자 끔, 물리 1/120초' : '저사양 모드 끔 · 자동 전환도 멈춤'); }
+  if (x === 'guide') startGuide({ force: true });
 });
 // 키오스크: 90초 동안 입력이 없으면 첫 화면으로
 const titleEl = $('#title');
@@ -1131,6 +1100,8 @@ const ro = new ResizeObserver(() => { const w = stageEl.clientWidth, h = stageEl
   const hf = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(20)) * 1.12); camera.fov = Math.min(78, Math.max(40, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(hf / 2) / camera.aspect))));
   camera.updateProjectionMatrix(); });
 ro.observe(stageEl);
+// 안내 글(#hint)은 재해 고르기 판 바로 위에: 판 높이가 바뀌면(접기·펼치기·화면 크기) 따라 올라간다
+new ResizeObserver(() => { const h = $('#hint'); h.style.bottom = innerWidth > 860 ? $('#dock').offsetHeight + 32 + 'px' : ''; }).observe($('#dock'));
 let last = performance.now(), frameN = 0;
 // 장면 이름표(오늘날 정림사지 표시에 쓴다)
 const fx = new THREE.Group(); scene.add(fx);
@@ -1160,19 +1131,32 @@ function whyHTML() {
     <div class="row"><button class="btn pat" data-x="close">닫기</button></div>`;
 }
 
+// 재해 겉모습(weather.js): 폭풍우·폭설이면 하늘과 빛을 어둡게, 나무는 바람에 흔들린다
+const skyEl = $('#sky'), hLbl = $('#hLbl'), WX = makeWeather(scene), FOG0 = scene.fog.color.clone(), FOG_DARK = new THREE.Color(0x50545a);
+function weatherTick(dt) {
+  const trees = VIL ? (VIL.trees ||= VIL.items.filter(i => i.kind === 'tree')) : [];
+  WX.update(dt, sim.quake, { mag: sim.mag, perf: PERF.on, trees, blocks: sim.blocks });
+  const d = WX.dark; sun.intensity = 2.4 * (1 - 0.6 * d); hemi.intensity = 1.1 * (1 - 0.45 * d); scene.fog.color.copy(FOG0).lerp(FOG_DARK, d);
+  const o = Math.round(d * 10) / 10; if (o !== skyEl._o) { skyEl._o = o; skyEl.style.opacity = o; } // 투명도만 바꾼다(스타일 재계산 없이)
+}
 function loop(now) {
   const gap = now - last, dt = Math.min(0.05, gap / 1000); last = now;
   tickFps(now, gap);
   sim.frame(dt); dustTick(dt);
   if (sim.quake && sim.quake.done) finishTest();
   groundMesh.position.set(sim.gx, -0.5, sim.gz);
+  weatherTick(dt);
   for (const m of meshes) { const b = m.userData.block, t = b.body.translation(), r = b.body.rotation(); m.position.set(t.x, t.y, t.z); m.quaternion.set(r.x, r.y, r.z, r.w); }
   if (frameN++ % 6 === 0) {
     const st = sim.stats();
     comMark.visible = st.count > 0;
     if (st.count) { comMark.position.set(sim.gx, st.comY, sim.gz); comLine.scale.y = st.comY; comLine.position.y = -st.comY / 2; }
-    const mg = sim.quake ? sim.mag : 0; $('#hMag').textContent = mg.toFixed(1); document.querySelectorAll('#segs i').forEach((el, k) => el.classList.toggle('on', k + 1 <= mg));
-    if (sim.quake && sim.quake.mode === 'ramp') { const m = sim.mag; if (m !== S.rampShown) { S.rampShown = m; if (!sim.quake.collapsed && m > 1) banner(`지진 세기 ${m.toFixed(1)}`, '#fff'); } }
+    const ramp = sim.quake && sim.quake.mode === 'ramp', mg = sim.quake ? sim.mag : 0;
+    $('#hMag').textContent = mg.toFixed(2); document.querySelectorAll('#segs i').forEach((el, k) => el.classList.toggle('on', k + 1 <= mg));
+    const lv = document.getElementById('liveMag'); if (lv && sim.quake) lv.textContent = mg.toFixed(ramp ? 2 : 1);
+    // 세기가 정수를 넘을 때만 알림(0.01마다 띄우면 어지럽다)
+    if (ramp) { const k = Math.floor(sim.mag); if (k !== S.rampShown) { S.rampShown = k; if (!sim.quake.collapsed && k > 1) banner(`${DISASTERS[sim.quake.kind || 'quake'].name} 세기 ${k.toFixed(2)}`, '#fff'); } }
+    const hl = `${DISASTERS[sim.quake ? sim.quake.kind || 'quake' : S.disaster].name} 세기`; if (hLbl.textContent !== hl) hLbl.textContent = hl;
   }
   if (target.visible) target.position.x = asm().plan[asm().placed.length].pos[0] + sim.gx;
   controls.update();
@@ -1188,6 +1172,10 @@ try {
   S.design = []; resetAsm(1); resetAsm(2);
   rebuild(); render(); requestAnimationFrame(loop);
   if (KIOSK) showTitle(); else stageLeaflet();
-  window.__game = { S, sim, asm, autoPlace, render, FPS, PERF, setPerf, renderer, scene, camera, proj: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
+  // 처음 온 사람: 리플렛을 닫으면 대목장 안내가 뜬다(한 번만, ?guide=0이면 건너뜀)
+  if (!KIOSK && !guideSeen() && new URLSearchParams(location.search).get('guide') !== '0') {
+    const wait = setInterval(() => { if (!leafletOpen() && !sheetKind) { clearInterval(wait); setTimeout(() => startGuide(), 400); } }, 300);
+  }
+  window.__game = { S, sim, asm, autoPlace, render, FPS, PERF, setPerf, renderer, scene, camera, controls, resetStage, WX, proj: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 } catch (err) { console.error(err); $('#err').style.display = 'grid'; }
 setTimeout(() => syncVillage(true), 0); // 시작할 때 마을을 세운다
