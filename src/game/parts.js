@@ -20,7 +20,7 @@ function planarUV(g) {
 }
 
 // 처마가 들린 지붕(옥개석·처마·기와): 아래 처마선 a, 꼭대기 평면 t, 처마 두께 e, 귀솟음 lift, 바닥 y0, 꼭대기 y1
-function eaveRoof({ a, t, e, lift, y0, y1, n = 10 }) {
+export function eaveRoof({ a, t, e, lift, y0, y1, n = 10 }) {
   const ring = (half, y, withLift) => {
     const pts = [];
     for (let s = 0; s < 4; s++) for (let i = 0; i < n; i++) {

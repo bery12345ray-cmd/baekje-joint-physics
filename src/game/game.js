@@ -3,6 +3,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Sim, MATERIALS, pga, buildJeongnimsa, buildNeungsa, buildPalsang, woodBase, woodPosts, woodBeam, woodRoof, woodStory, woodFinial } from './sim.js';
 import { buildPart, PART_NAMES } from './parts.js';
+import { PEOPLE_SVG } from './people.js';
+import { buildVillage, VMAT, resetVillageMats } from './village.js';
 
 const $ = s => document.querySelector(s);
 const stageEl = $('#stage'), panel = $('#panel');
@@ -277,7 +279,23 @@ function buildS3() {
     else if (it.parent != null && made[it.parent]) sim.addJoint(b, made[it.parent], it.joint, it.anchor);
   }
 }
-const rebuild = () => { resetDisaster(); S.dirty = false; S.crit = null; (S.stage === 3 ? buildS3 : buildAsm)(); };
+const rebuild = () => { resetDisaster(); S.dirty = false; S.crit = null; (S.stage === 3 ? buildS3 : buildAsm)(); syncVillage(); };
+// ---------- 탑 둘레: 백제 마을과 정림사 가람(둘째 마당은 "백제 때 / 오늘날" 전환) ----------
+let VIL = null, vilKey = '';
+const vilLabels = new THREE.Group();
+function syncVillage(force = false) {
+  const key = S.stage === 3 ? 'none' : S.stage + (S.stage === 2 ? S.era || 'baekje' : 'baekje');
+  if (!force && key === vilKey && !S.villageDamaged) return;
+  vilKey = key; S.villageDamaged = false;
+  if (VIL) { scene.remove(VIL.root); VIL.root.traverse(o => o.geometry && o.geometry.dispose()); VIL = null; }
+  for (const c of [...vilLabels.children]) vilLabels.remove(c);
+  resetVillageMats();
+  if (S.stage === 3) return;
+  VIL = buildVillage(S.stage === 2 ? S.era || 'baekje' : 'baekje', S.stage);
+  scene.add(VIL.root);
+  if (!vilLabels.parent) scene.add(vilLabels);
+  for (const [t, x, y, z] of VIL.labels) vilLabels.add(label(t, x, y, z, { w: 3.6 }));
+}
 const recKey = () => S.stage === 1 ? S.tut.kind : S.s2.preset === 'jeong'
   ? `정림사 · 탑신 ${S.s2.body}× · 체감 ${S.s2.taper} · 지붕 ${S.s2.roof}×${S.s2.ornament ? ' · 장식' : ''}` : `능사지 · ${JOINT_INFO[S.s2.kind][0]}`;
 
@@ -686,6 +704,7 @@ function panelHTML() {
     return head('둘째 마당 · 응용', '천년의 석탑') + photo('jeong')
       + spirit('검이불루 화이불치', '검소하되 누추하지 않고, 화려하되 사치스럽지 않다. 덜어낼수록 무게중심이 내려앉습니다.')
       + asmBox(`<button class="btn pat" data-act="autoall" ${dis()}>남은 부재 자동으로</button>`) + lessonHTML()
+      + `<h3>정림사지 둘러보기</h3>${seg([['baekje', '백제 때 정림사<br><small>중문·금당·강당·회랑</small>'], ['today', '오늘날 정림사지<br><small>터·보호각·박물관</small>']], 'era', S.era || 'baekje')}<p class="note">${(S.era || 'baekje') === 'today' ? '오늘날 금당과 회랑은 터만 남았고, 강당 자리에 고려 때 석조여래좌상을 모신 보호각(1993)이 있습니다. 가까이에 정림사지박물관(2006 개관)이 있습니다.' : '남쪽에서 북쪽으로 중문·오층석탑·금당·강당이 한 줄로 서고, 둘레를 회랑이 감쌌습니다(북쪽이 더 넓은 사다리꼴). 중문 앞에는 연못 두 개가 있었습니다.'}</p>`
       + `<h3>어떤 탑을 쌓을까</h3>${seg([['hist', '정림사지 비례<br><small>검이불루</small>'], ['ornate', '화려하게 지은 탑<br><small>화이불치를 어김</small>']], 's2m', s.ornament ? 'ornate' : 'hist')}<p class="note">${s.ornament ? '몸돌을 높이고 지붕돌을 넓히고 장식석까지 얹은 탑입니다. 같은 지진에서 정림사지 비례와 견주어 보세요.' : '실제 정림사지 오층석탑의 비례 그대로입니다.'}</p>`
       + disasterHTML()
       + `<div class="row"><button class="btn line" data-act="heritage" aria-haspopup="dialog">국가유산 안내</button><button class="btn line" data-act="gojeung" aria-haspopup="dialog">고증 노트</button></div>`
@@ -773,6 +792,7 @@ ui.addEventListener('click', e => {
   if (d.kind2) { S.s2.kind = d.kind2; S.last = null; resetAsm(2); rebuild(); }
   if (d.s2m) { Object.assign(S.s2, HIST, d.s2m === 'ornate' ? ORNATE : {}); S.last = null; S.disasterMsg = null; resetAsm(2); rebuild(); }
   if (d.dis) { startDisaster(d.dis); return; }
+  if (d.era) { S.era = d.era; syncVillage(); }
   if (d.preset) { S.s2.preset = d.preset; S.last = null; resetAsm(2); rebuild(); }
   if (d.ex) { S.design = EXAMPLES[d.ex].design(); S.example = d.ex; S.last = null; rebuild(); banner(`${EXAMPLES[d.ex].name}을(를) 불러왔습니다`, '#fff'); }
   if (d.mat) S.sel.mat = d.mat;
@@ -1037,34 +1057,22 @@ const fx = new THREE.Group(); scene.add(fx);
 
 // ----- 게임 화풍의 일러스트 인물(캔버스로 그린 빌보드) -----
 const PEOPLE = {};
-function personTex(kind) {
+function personTex(kind) { // 탑 일러스트와 같은 화풍의 SVG(people.js)를 캔버스 텍스처로
   if (PEOPLE[kind]) return PEOPLE[kind];
-  const c = document.createElement('canvas'); c.width = 128; c.height = 200; const g = c.getContext('2d');
-  const INK = '#3b362f', skin = '#e8c9a2';
-  const C = { carpenter: ['#e9dfc8', '#8a6a44', '#c99a62'], baekje: ['#3f7d6e', '#2e2b27', '#c8a054'], enemy: ['#8e3b2e', '#4a2a22', '#b9b09c'], general: ['#4b3a5c', '#2b2433', '#c8a054'], villager: ['#d8cfb9', '#6b6455', '#a8452c'] }[kind];
-  g.lineWidth = 3; g.strokeStyle = INK; g.lineJoin = 'round';
-  const path = (pts, fill) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fillStyle = fill; g.fill(); g.stroke(); };
-  path([[46, 196], [52, 132], [62, 132], [60, 196]], C[1]); path([[68, 196], [66, 132], [76, 132], [82, 196]], C[1]);      // 다리
-  path([[34, 140], [40, 78], [88, 78], [94, 140], [78, 146], [50, 146]], C[0]);                                          // 몸(저고리·갑옷)
-  g.fillStyle = C[2]; g.fillRect(40, 112, 48, 7); g.strokeRect(40, 112, 48, 7);                                          // 허리띠
-  g.beginPath(); g.arc(64, 56, 20, 0, 7); g.fillStyle = skin; g.fill(); g.stroke();                                       // 얼굴
-  g.fillStyle = INK; g.fillRect(56, 54, 3, 3); g.fillRect(69, 54, 3, 3);
-  if (kind === 'carpenter' || kind === 'villager') { g.fillStyle = INK; g.beginPath(); g.arc(64, 44, 20, Math.PI, 0); g.fill(); g.fillStyle = '#f3ead2'; g.fillRect(44, 40, 40, 6); g.strokeRect(44, 40, 40, 6); } // 상투·머리띠
-  if (kind === 'carpenter') { g.strokeStyle = '#5a3d22'; g.lineWidth = 5; g.beginPath(); g.moveTo(96, 120); g.lineTo(114, 80); g.stroke(); g.fillStyle = '#6b6455'; g.fillRect(104, 70, 22, 12); g.strokeStyle = INK; g.lineWidth = 3; g.strokeRect(104, 70, 22, 12); } // 망치
-  if (kind === 'baekje' || kind === 'enemy') {
-    path([[42, 50], [64, 24], [86, 50], [84, 58], [44, 58]], kind === 'baekje' ? '#2e2b27' : '#4a2a22');                // 투구
-    if (kind === 'enemy') { g.fillStyle = '#c44d34'; g.fillRect(60, 10, 8, 16); }
-    g.strokeStyle = '#5a3d22'; g.lineWidth = 4; g.beginPath(); g.moveTo(104, 196); g.lineTo(104, 20); g.stroke();       // 창
-    path([[98, 22], [104, 4], [110, 22]], '#b9b09c');
-    g.lineWidth = 3; g.strokeStyle = INK; g.beginPath(); g.arc(32, 112, 16, 0, 7); g.fillStyle = kind === 'baekje' ? '#a8452c' : '#6b6455'; g.fill(); g.stroke(); // 방패
-  }
-  if (kind === 'general') { path([[40, 44], [88, 44], [80, 30], [48, 30]], '#2b2433'); path([[30, 148], [44, 78], [84, 78], [98, 148]], C[0]); g.fillStyle = C[2]; g.fillRect(40, 112, 48, 7); }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; PEOPLE[kind] = t; return t;
+  const c = document.createElement('canvas'); c.width = 240; c.height = 440;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; PEOPLE[kind] = t;
+  const img = new Image(); img.onload = () => { c.getContext('2d').drawImage(img, 0, 0, 240, 440); t.needsUpdate = true; };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(PEOPLE_SVG[kind]); return t;
 }
+let shadowTex = null;
 function person(kind, x, z, h0 = 1.75) {
   const h = h0 * 1.35; // 그림 속 인물처럼 조금 크게(읽히도록)
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: personTex(kind), transparent: true, depthWrite: false }));
-  s.scale.set(h * 0.64, h, 1); s.center.set(0.5, 0); s.position.set(x, 0, z); fx.add(s); return s;
+  s.scale.set(h * 120 / 220, h, 1); s.center.set(0.5, 0.02); s.position.set(x, 0, z); fx.add(s);
+  if (!shadowTex) { const c = document.createElement('canvas'); c.width = 128; c.height = 40; const g = c.getContext('2d'); g.fillStyle = 'rgba(95,91,82,.35)'; g.beginPath(); g.ellipse(64, 20, 60, 15, 0, 0, 7); g.fill(); shadowTex = new THREE.CanvasTexture(c); }
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(h * 0.5, h * 0.16), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+  sh.rotation.x = -Math.PI / 2; sh.position.set(x, 0.01, z); fx.add(sh); s.userData.shadow = sh;
+  return s;
 }
 function label(text, x, y, z, { gold = false, w = 3.2 } = {}) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 112; const g = c.getContext('2d');
@@ -1087,6 +1095,8 @@ const say = (text, color = '#fff') => banner(text, color);
 function startDisaster(kind) {
   if (S.testing || DIS || !sim.blocks.length) return;
   resetDisaster();
+  if (S.stage === 2 && S.era === 'today') { S.era = 'baekje'; syncVillage(); }
+  S.villageDamaged = true;
   const { h, r } = towerBox(), stone = S.stage === 2;
   DIS = { kind, t: 0, h, r, stone, wood: sim.blocks.filter(isWood), burned: 0, flames: [], arrows: [], cast: [], ev: new Set(),
     start: new Map(sim.blocks.map(b => { const t = b.body.translation(); return [b, [t.x, t.y, t.z]]; })),
@@ -1101,8 +1111,9 @@ function startDisaster(kind) {
   }
   if (kind === 'fire') {
     // 백제군은 탑 앞을 지키고, 나당 연합군이 멀리서 다가온다
-    DIS.cast = [[-3.6, 2.4], [-4.3, 0.9], [-2.7, 3.7]].map(([x, z]) => ({ s: person('baekje', x, z), side: 'b' })) // 화면 왼쪽: 탑을 지키는 백제군
-      .concat([[10, -6], [11.5, -4.5], [9, -8], [12, -7.5], [10.5, -9.5]].map(([x, z]) => ({ s: person('enemy', x, z), side: 'e', to: [x * 0.45, z * 0.45] }))); // 화면 오른쪽 뒤에서 다가오는 연합군
+    const inTemple = S.stage === 2; // 둘째 마당은 회랑 안마당: 백제군은 탑 앞, 연합군은 남쪽 중문으로 들어온다
+    DIS.cast = (inTemple ? [[3.2, 3.6], [4.6, 2.4], [1.8, 4.8]] : [[-3.6, 2.4], [-4.3, 0.9], [-2.7, 3.7]]).map(([x, z]) => ({ s: person('baekje', x, z), side: 'b' }))
+      .concat((inTemple ? [[0, 16], [1.8, 17], [-1.8, 17], [3.4, 15.5], [-3.4, 15.5]].map(([x, z]) => [x, z, x * 0.6 + 2.2, 7.6]) : [[10, -6], [11.5, -4.5], [9, -8], [12, -7.5], [10.5, -9.5]].map(([x, z]) => [x, z, x * 0.45, z * 0.45])).map(([x, z, tx, tz]) => ({ s: person('enemy', x, z), side: 'e', to: [tx, tz] })));
     const flameGeo = new THREE.ConeGeometry(0.22, 0.7, 8);
     for (const b of (DIS.wood.length ? DIS.wood : sim.blocks.slice(2, 10))) { const f = new THREE.Mesh(flameGeo, new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.85, depthWrite: false })); f.userData.b = b; f.userData.p = Math.random() * 6; f.visible = false; fx.add(f); DIS.flames.push(f); }
     DIS.flames.sort((a, b) => a.userData.b.body.translation().y - b.userData.b.body.translation().y);
@@ -1114,7 +1125,7 @@ function startDisaster(kind) {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     DIS.streaks = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 })); fx.add(DIS.streaks);
     // 기록 속 백성과 나무(큰 바람에 나무가 뽑혔다)
-    DIS.cast = [[-4.2, 1.2], [-3.2, 2.8]].map(([x, z]) => ({ s: person('villager', x, z, 1.6) }));
+    DIS.cast = [[-4.2, 1.2], [-3.2, 2.8]].map(([x, z], n) => ({ s: person(n ? 'villager2' : 'villager', x, z, 1.6) }));
     DIS.trees = [[-6, -2], [-2, -7], [5, -8]].map(([x, z]) => { const tr = new THREE.Group(); const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 2.4, 8), MATS.pine); trunk.position.y = 1.2; const top = new THREE.Mesh(new THREE.ConeGeometry(1, 2.2, 9), new THREE.MeshStandardMaterial({ color: 0x5f7d55, roughness: 1, flatShading: true })); top.position.y = 3; tr.add(trunk, top); tr.position.set(x, 0, z); fx.add(tr); return tr; });
     say('《삼국사기》 백제본기에 남은 큰 바람', '#fff');
   }
@@ -1123,6 +1134,8 @@ function startDisaster(kind) {
 const once = (id, t) => (DIS.t >= t && !DIS.ev.has(id) ? (DIS.ev.add(id), true) : false);
 function disasterTick(dt) {
   const D = DIS; if (!D) return; D.t += dt; const T = D.t;
+  fx.traverse(o => { if (o.isSprite && o.userData.shadow) o.userData.shadow.position.set(o.position.x, Math.max(0.01, o.position.y + 0.01), o.position.z); });
+  villageTick(D, dt);
   for (const c of D.cast) if (c.s.material.rotation && c.fall) c.s.material.opacity = Math.max(0.25, c.s.material.opacity - dt * 0.3);
   // ---------- 비: 썩음 → 한 곳 붕괴 → 목수들이 층마다 보수 ----------
   if (D.kind === 'rain') {
@@ -1151,7 +1164,7 @@ function disasterTick(dt) {
         if (once('f' + i, t0)) {
           for (const c of D.cast) fx.remove(c.s); D.cast = [];
           const y = Math.max(0, fy - 1.1), rr = D.r * 0.5;
-          D.cast = [[-rr - 0.9, rr * 0.4], [-rr - 0.3, rr + 0.6], [rr * 0.2, rr + 1.2]].map(([x, z]) => ({ s: person('carpenter', x, z, 1.55), y }));
+          D.cast = [[-rr - 0.9, rr * 0.4], [-rr - 0.3, rr + 0.6], [rr * 0.2, rr + 1.2]].map(([x, z], n) => ({ s: person(n === 1 ? 'carpenter2' : 'carpenter', x, z, 1.55), y }));
           for (const c of D.cast) c.s.position.y = y;
           if (D.tag) fx.remove(D.tag); D.tag = label(`${i + 1}층 보수 중`, -rr - 1.2, y + 2.4, rr * 0.8, { w: 2.6 });
           say(`목수들이 ${i + 1}층의 썩은 부재를 갈아 끼웁니다`, '#fff');
@@ -1185,8 +1198,8 @@ function disasterTick(dt) {
     if (once('fall', 8)) { for (const c of D.cast) if (c.side === 'b') { c.s.material.rotation = Math.PI / 2; c.fall = true; c.s.center.set(0.5, 0.5); c.s.position.y = 0.3; } say('사비성이 무너지고 백제가 멸망합니다', '#ffd2a8'); }
     if (!D.stone && once('end', 12)) { S.disasterMsg = '660년 7월, 나당 연합군에 사비성이 함락되었습니다. 전쟁의 불길은 나무로 지은 건물을 쉽게 태웠습니다. 능사지와 미륵사지의 목탑도 오늘날 터만 남았습니다.'; say('목탑은 불에 타 사라졌습니다', '#ffd2a8'); }
     if (D.stone) { // 석탑은 타지 않고, 당 장수 소정방이 비문을 새긴다
-      if (once('general', 9.5)) { D.gen = person('general', 8, -6, 1.85); D.genTag = label('당나라 장수 소정방', 8, 2.5, -6, { w: 2.6 }); say('불길이 지나가도 석탑은 타지 않았습니다', '#fff'); }
-      if (D.gen && T > 9.5 && T < 12.5) { const k = dt * 1.2; D.gen.position.x += (D.r * 0.5 + 1.8 - D.gen.position.x) * k; D.gen.position.z += (D.r * 0.2 - D.gen.position.z) * k; D.genTag.position.set(D.gen.position.x, 2.5, D.gen.position.z); }
+      if (once('general', 9.5)) { D.gen = person('general', 2, 13, 1.85); D.genTag = label('당나라 장수 소정방', 2, 3.2, 13, { w: 2.6 }); say('불길이 지나가도 석탑은 타지 않았습니다', '#fff'); }
+      if (D.gen && T > 9.5 && T < 12.5) { const k = dt * 1.2; D.gen.position.x += (D.r * 0.5 + 1.8 - D.gen.position.x) * k; D.gen.position.z += (D.r * 0.2 - D.gen.position.z) * k; D.genTag.position.set(D.gen.position.x, 3.2, D.gen.position.z); }
       if (once('carve', 12.5)) {
         const t1 = sim.blocks.find(b => b.part === 'tapsin1'), y = t1 ? t1.body.translation().y : 1.5;
         D.carve = label('大唐平百濟國碑銘', 0.9, y, 1.3, { gold: true, w: 3.4 });
@@ -1214,6 +1227,37 @@ function disasterTick(dt) {
   }
   if (D.kind === 'rain' && D.finishRepair) return finishDisaster();
   if (D.t >= D.dur) finishDisaster();
+}
+// 석탑 말고 마을과 법당은 무너지고 탄다
+function villageTick(D, dt) {
+  if (!VIL) return; const T = D.t;
+  const items = VIL.items.filter(it => it.kind !== 'stone');
+  if (!D.vil) { // 무너질 차례를 정한다(탑에 가까운 것부터)
+    D.vil = items.map(it => ({ ...it, d: Math.hypot(it.x, it.z) })).sort((a, b) => a.d - b.d);
+    D.vil.forEach((v, i) => { v.at = 0; v.done = false; v.i = i; });
+    if (D.kind === 'rain') { const th = D.vil.filter(v => v.kind === 'thatch'); th.slice(0, 2).forEach((v, i) => (v.at = 6.3 + i * 0.6)); }
+    if (D.kind === 'fire') D.vil.forEach((v, i) => (v.at = 5.5 + i * (7 / Math.max(1, D.vil.length))));
+    if (D.kind === 'wind') D.vil.forEach(v => (v.at = v.kind === 'tree' ? 5.5 + Math.random() : v.kind === 'thatch' ? 1.5 + Math.random() * 4 : 0));
+    D.vilFlames = [];
+  }
+  if (D.kind === 'fire' && T > 4.5) { // 마을 재료가 검게 탄다
+    const k = Math.min(1, (T - 4.5) / 6);
+    for (const m of ['wood', 'plaster', 'straw', 'red', 'green', 'gold', 'leaf', 'giwa']) VMAT[m].color.copy(VMAT[m].userData0 || (VMAT[m].userData0 = VMAT[m].color.clone())).lerp(new THREE.Color(0x1d1915), k * 0.9);
+  }
+  for (const v of D.vil) {
+    if (!v.at || T < v.at || v.done) continue;
+    const o = v.obj, k = Math.min(1, (T - v.at) / (D.kind === 'fire' ? 2.6 : 1.6));
+    if (D.kind === 'wind' && v.kind === 'thatch' && o.userData.roof) { // 초가지붕이 날아간다
+      const r = o.userData.roof; r.position.x += dt * 5; r.position.y += dt * 2.2; r.rotation.z -= dt * 1.4; if (k >= 1) { r.visible = false; v.done = true; } continue;
+    }
+    if (D.kind === 'wind' && v.kind !== 'tree') { v.done = true; continue; }
+    if (v.kind === 'tree') { o.rotation.z = -1.45 * k; if (k >= 1) v.done = true; continue; } // 뽑혀 쓰러지는 나무
+    // 무너짐: 기울며 주저앉는다(불이면 타서 사라지고 잔해만 남는다)
+    o.rotation.z = (v.i % 2 ? 1 : -1) * 0.35 * k; o.position.y = -1.2 * k * (D.kind === 'fire' ? 1.6 : 0.7); o.scale.y = 1 - 0.45 * k;
+    if (D.kind === 'fire' && !v.flame) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.4, 8), new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.8, depthWrite: false })); f.position.set(v.x, 1.6, v.z); fx.add(f); v.flame = f; }
+    if (v.flame) { v.flame.scale.set(1, 0.7 + 0.4 * Math.sin(T * 9 + v.i), 1); v.flame.material.opacity = 0.85 * (1 - Math.max(0, k - 0.6) / 0.4); }
+    if (k >= 1) { v.done = true; if (D.kind === 'fire') { o.visible = false; const rb = new THREE.Group(); rb.add(new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.25, 2), VMAT.rubble)); for (let n = 0; n < 4; n++) { const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 2.2, 6), VMAT.rubble); beam.position.set((n - 1.5) * 0.5, 0.3, (n % 2 - 0.5) * 0.6); beam.rotation.set(Math.PI / 2 - 0.25 + n * 0.12, n * 0.7, 0.3 * (n % 2 ? 1 : -1)); rb.add(beam); } rb.position.set(v.x, 0.12, v.z); rb.rotation.y = v.i; VIL.root.add(rb); /* 타고 남은 잔해: 숯이 된 기둥 더미 */ if (v.flame) v.flame.visible = false; } }
+  }
 }
 function finishDisaster() {
   const D = DIS; if (!D) return;
@@ -1290,4 +1334,5 @@ try {
   if (KIOSK) showTitle();
   window.__game = { S, sim, asm, autoPlace, render, FPS, PERF, setPerf, renderer, scene, camera, proj: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 } catch (err) { console.error(err); $('#err').style.display = 'grid'; }
+setTimeout(() => { syncVillage(true); for (const k of Object.keys(PEOPLE_SVG)) personTex(k); }, 0); // 마을을 세우고 인물 그림을 미리 불러 둔다
 window.__disTick = (dt) => { sim.frame(dt); disasterTick(dt); for (const m of meshes) { const b = m.userData.block, t = b.body.translation(), r = b.body.rotation(); m.position.set(t.x, t.y, t.z); m.quaternion.set(r.x, r.y, r.z, r.w); } renderer.render(scene, camera); return DIS && DIS.t; }; // 개발 확인용
