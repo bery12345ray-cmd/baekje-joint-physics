@@ -322,7 +322,7 @@ const recKey = () => S.stage === 1 ? S.tut.kind : S.s2.preset === 'jeong'
 function startTest(mode) {
   if (S.dirty) rebuild();
   // 첫째 마당(미륵사지 석탑): 이음 없이 얹은 돌은 맞닿은 면이 매끈해 잘 미끄러진다(턱·은장이 없음)
-  if (S.stage === 1) { sim.quakeGain = S.tut.kind === 'none' ? 1.7 : 1; if (S.tut.kind === 'none') for (const b of sim.blocks) b.col.setFriction(0.2); }
+  if (S.stage === 1) { sim.quakeGain = S.tut.kind === 'none' ? 2.3 : S.tut.kind === 'rigid' ? 1.4 : 1; if (S.tut.kind === 'none') for (const b of sim.blocks) b.col.setFriction(0.12); }
   for (let i = 0; i < 60; i++) sim.step();
   // 지진 전까지 부러진 나무 = 자중(自重) 초과. 지진 중 기록과 따로 센다
   S.preEv = { ...S.ev };
