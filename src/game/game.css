@@ -437,3 +437,52 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
 #dropBar{left:0;right:0;margin:0 auto;transform:none}
 
 
+
+/* ==========================================================================
+   첫 화면 리플렛(정림사지 안내): 한 장씩 왼쪽으로 넘기는 종이 리플렛
+   ========================================================================== */
+#leaflet{position:fixed;inset:0;z-index:50;display:grid;place-items:center;grid-template-rows:1fr auto auto;gap:12px;padding:20px 16px 18px;
+  background:radial-gradient(120% 90% at 50% 20%,#2a2722 0%,var(--togi) 70%);animation:lf-in .5s var(--ease)}
+#leaflet.lf-out{opacity:0;transform:scale(1.02);transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.lf-book{position:relative;width:min(920px,100%);height:min(580px,calc(100dvh - 140px));perspective:2200px;align-self:center}
+.lf-page{position:absolute;inset:0;display:grid;grid-template-columns:1.05fr 1fr;background:var(--jeon);color:var(--ink);border-radius:6px var(--r-lg) var(--r-lg) 6px;
+  box-shadow:var(--sh-2),inset 10px 0 18px -12px rgba(20,19,17,.35);overflow:hidden;transform-origin:left center;transform-style:preserve-3d;backface-visibility:hidden;
+  transition:transform .9s var(--ease),opacity .9s var(--ease),filter .9s var(--ease)}
+.lf-page.turned{transform:rotateY(-160deg);opacity:0;filter:brightness(.7);pointer-events:none}
+.lf-page::after{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(var(--gold),var(--goldl),var(--gold));opacity:.8}
+.lf-art{background:#e8e0cf;border-right:1px solid var(--line);display:grid;place-items:center;min-height:0}
+.lf-art svg{width:100%;height:100%;display:block}
+.lf-text{padding:34px 36px 26px;overflow:auto;display:flex;flex-direction:column;gap:10px;word-break:keep-all;overflow-wrap:break-word}
+.lf-text h2{font-family:var(--D);font-size:clamp(26px,3.4vw,38px);line-height:1.15;margin:0;color:var(--ink);font-weight:400}
+.lf-text p{margin:0;font-size:15.5px;line-height:1.75;color:#2f2b26;max-width:36em}
+.lf-kicker{align-self:flex-start;font-size:12.5px;letter-spacing:.06em;color:#fbf7ee;background:var(--pat);padding:3px 10px;border-radius:999px}
+.lf-cover .lf-kicker{background:var(--gold);color:var(--togi)}
+.lf-cover h2{font-size:clamp(40px,6vw,62px);letter-spacing:.06em}
+.lf-sub{font-family:var(--D);color:var(--mute)!important;letter-spacing:.14em;font-size:13.5px!important}
+.lf-info{margin:4px 0 0;display:grid;gap:6px;border-top:1px solid var(--line);padding-top:10px}
+.lf-info div{display:grid;grid-template-columns:5.5em 1fr;gap:8px;font-size:13.5px;line-height:1.55}
+.lf-info dt{color:var(--pat);font-weight:700}.lf-info dd{margin:0}
+.lf-src{margin-top:auto!important;padding-top:8px;font-size:12px!important;color:var(--mute)!important}
+.lf-go{align-self:flex-start;margin-top:6px;font:inherit;font-size:16px;padding:12px 22px;border-radius:var(--r-sm);border:1px solid var(--gold);background:var(--togi);color:var(--goldl);cursor:pointer;box-shadow:var(--sh-1)}
+.lf-go:hover{background:#2a2722}
+.lf-nav{display:flex;align-items:center;gap:14px}
+.lf-nav button{font:inherit;min-width:44px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid rgba(200,160,84,.7);background:transparent;color:var(--goldl);cursor:pointer;font-size:16px}
+.lf-nav button:disabled{opacity:.3;cursor:default}
+.lf-nav button:not(:disabled):hover{background:rgba(200,160,84,.14)}
+.lf-dots{display:flex;gap:7px}.lf-dots i{width:8px;height:8px;border-radius:50%;background:rgba(234,228,215,.28);transition:background .3s,transform .3s}
+.lf-dots i.on{background:var(--gold);transform:scale(1.3)}
+.lf-skip{position:absolute;top:14px;right:16px;font:inherit;font-size:14px;padding:9px 16px;border-radius:999px;border:1px solid rgba(234,228,215,.35);background:rgba(20,19,17,.5);color:var(--jeon);cursor:pointer}
+.lf-skip:hover{border-color:var(--gold);color:var(--goldl)}
+.lf-hint{margin:0;font-size:12.5px;color:rgba(234,228,215,.55)}
+@keyframes lf-in{from{opacity:0}to{opacity:1}}
+@media (max-width:720px){
+  #leaflet{padding:58px 12px 12px;gap:10px}
+  .lf-book{height:calc(100dvh - 150px)}
+  .lf-page{grid-template-columns:1fr;grid-template-rows:minmax(150px,34%) 1fr}
+  .lf-art{border-right:0;border-bottom:1px solid var(--line)}
+  .lf-art svg{height:100%;width:auto;max-width:100%}
+  .lf-text{padding:18px 18px 16px;gap:8px}
+  .lf-text p{font-size:14.5px;line-height:1.7}
+  .lf-skip{top:10px;right:12px}
+}
+@media (prefers-reduced-motion:reduce){.lf-page{transition:opacity .2s}.lf-page.turned{transform:none}#leaflet{animation:none}}
