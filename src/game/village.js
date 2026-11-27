@@ -5,6 +5,7 @@
 // 좌표: 탑이 원점, 북쪽 = -z(화면 안쪽), 남쪽 = +z(카메라 쪽).
 import * as THREE from 'three';
 import { eaveRoof } from './parts.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const INK = new THREE.LineBasicMaterial({ color: 0x4a463e, transparent: true, opacity: 0.8 });
 const mat = (color, rough = 0.9) => new THREE.MeshStandardMaterial({ color, roughness: rough });
@@ -13,11 +14,36 @@ export const VMAT = {
   stone: mat(0xbdb9ad), plinth: mat(0xa9a599), plaster: mat(0xefe8d6), red: mat(0xa8452c, 0.8), wood: mat(0x8a6a44),
   giwa: mat(0x5a5750, 0.8), straw: mat(0xc2ab78, 1), green: mat(0x3f7d6e, 0.8), gold: mat(0xd9b45a, 0.6),
   water: new THREE.MeshStandardMaterial({ color: 0x8fa9a6, roughness: 0.25, metalness: 0.1 }), lawn: mat(0x9fb08a, 1), modern: mat(0xd8d2c4, 0.8), glass: mat(0x6f7f86, 0.4),
-  leaf: new THREE.MeshStandardMaterial({ color: 0x5f7d55, roughness: 1, flatShading: true }), rubble: mat(0x3a352e, 1),
+  leaf: new THREE.MeshStandardMaterial({ color: 0x5f7d55, roughness: 1, flatShading: true }), rubble: mat(0x3a352e, 1), mud: mat(0xa88f6a, 1),
 };
 VMAT.giwa.side = VMAT.straw.side = THREE.DoubleSide; // 지붕 안쪽 면도 칠해 빈틈이 보이지 않게
 const V0 = Object.fromEntries(Object.entries(VMAT).map(([k, m]) => [k, m.color.clone()]));
 export function resetVillageMats() { for (const [k, c] of Object.entries(V0)) { VMAT[k].color.copy(c); if (VMAT[k].emissive) VMAT[k].emissive.setHex(0); } }
+
+// ---------- 블렌더로 만든 마을 건물(public/models/village/*.glb, scripts/blender/garam_scene.py SCENE=village) ----------
+// 모델이 있으면 코드로 만든 건물과 같은 크기(경계 상자)에 맞춰 바꿔 끼운다. 재료는 VMAT으로 바꿔 불탄 색 바꾸기 등이 그대로 먹게 한다.
+const VM = {};
+export async function loadVillageModels(base = 'models/village/') {
+  try {
+    const list = await (await fetch(base + 'manifest.json')).json(), L = new GLTFLoader();
+    await Promise.all(list.map(async n => { const g = await L.loadAsync(base + n + '.glb'); VM[n] = g.scene; }));
+  } catch { /* 모델이 없으면 코드 모양 그대로 */ }
+  return Object.keys(VM).length;
+}
+const VNAME = { plinth: 'plinth', plaster: 'plaster', red: 'red', green: 'green', giwa: 'giwa', bark: 'wood', leaf: 'leaf', granite: 'stone', granite_dark: 'stone', water: 'water', modern: 'modern', glass: 'glass', iron: 'rubble', mud: 'mud', straw: 'straw' };
+const _b = new THREE.Box3(), _s = new THREE.Vector3(), _c = new THREE.Vector3();
+function swap(name, proc) { // proc: 코드로 만든 건물(크기 기준). 모델이 있으면 그 경계 상자에 맞춘 모델 묶음을 돌려준다
+  const src = VM[name]; if (!src) return proc;
+  _b.setFromObject(proc); const want = _b.getSize(new THREE.Vector3());
+  const m = src.clone(true);
+  m.traverse(o => { if (!o.isMesh) return; const k = VNAME[(o.material && o.material.name || '').toLowerCase()]; if (k) o.material = VMAT[k]; o.castShadow = o.receiveShadow = true;
+    if (o.material !== VMAT.leaf) o.add(new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 35), INK)); });
+  _b.setFromObject(m); _b.getSize(_s); _b.getCenter(_c);
+  const inner = new THREE.Group(); inner.add(m); m.position.set(-_c.x, -_b.min.y, -_c.z);
+  inner.scale.set(want.x / _s.x, want.y / _s.y, want.z / _s.z);
+  const g = new THREE.Group(); g.add(inner); g.userData = proc.userData; if (proc.userData.roof) g.userData.roof = inner;
+  return g;
+}
 
 function mesh(geo, m, x = 0, y = 0, z = 0, ink = true) {
   const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true;
@@ -31,7 +57,8 @@ function roof(w, d, h, m, lift = 0.25) {
   const o = mesh(g, m); o.scale.set(w, w, d); return o;
 }
 // 기와 법당: 돌 기단 + 붉은 기둥 + 흰 벽 + 녹색 창방 + 기와지붕
-function hall(w, d, h, { bays = 5, plinth = 0.5 } = {}) {
+function hall(w, d, h, opt = {}) { return swap(opt.bays === 7 ? 'v_hall7' : opt.bays === 3 ? (opt.plinth <= 0.3 ? 'v_tile' : 'v_gate') : 'v_hall5', hallCode(w, d, h, opt)); }
+function hallCode(w, d, h, { bays = 5, plinth = 0.5 } = {}) {
   const g = new THREE.Group();
   g.add(box(w + 0.8, plinth, d + 0.8, VMAT.plinth, 0, plinth / 2, 0));
   g.add(box(w, h, d, VMAT.plaster, 0, plinth + h / 2, 0));
@@ -41,7 +68,8 @@ function hall(w, d, h, { bays = 5, plinth = 0.5 } = {}) {
   return g;
 }
 // 초가집(백성의 집): 흙벽 + 둥근 초가지붕
-function house(w, d, h) {
+function house(w, d, h) { return swap('v_house', houseCode(w, d, h)); }
+function houseCode(w, d, h) {
   const g = new THREE.Group();
   g.add(box(w + 0.4, 0.25, d + 0.4, VMAT.plinth, 0, 0.12, 0));
   g.add(box(w, h, d, VMAT.plaster, 0, 0.25 + h / 2, 0));
@@ -52,7 +80,8 @@ function house(w, d, h) {
 function tileHouse(w, d, h) {
   const g = hall(w, d, h, { bays: 3, plinth: 0.3 }); return g;
 }
-function tree(s = 1) {
+function tree(s = 1) { return swap('v_tree', treeCode(s)); }
+function treeCode(s = 1) {
   const g = new THREE.Group();
   g.add(mesh(new THREE.CylinderGeometry(0.12 * s, 0.18 * s, 2.2 * s, 7), VMAT.wood, 0, 1.1 * s, 0, false));
   for (const [y, r] of [[2.4, 1.1], [3.2, 0.85], [3.9, 0.55]]) g.add(mesh(new THREE.ConeGeometry(r * s, 1.2 * s, 8), VMAT.leaf, 0, y * s, 0, false));
@@ -65,7 +94,8 @@ function pond(w, d) {
   return g;
 }
 // 회랑: 지붕 덮인 긴 복도(기둥 줄 + 기와지붕)
-function corridor(len, { h = 1.7 } = {}) {
+function corridor(len, opt = {}) { return swap('v_corridor', corridorCode(len, opt)); }
+function corridorCode(len, { h = 1.7 } = {}) {
   const g = new THREE.Group();
   g.add(box(len, 0.3, 1.6, VMAT.plinth, 0, 0.15, 0));
   for (let x = -len / 2 + 0.4; x <= len / 2 - 0.3; x += 1.4) g.add(box(0.14, h, 0.14, VMAT.red, x, 0.3 + h / 2, 0, false));
@@ -76,9 +106,9 @@ function corridor(len, { h = 1.7 } = {}) {
 
 // 중층(2층) 금당: 아래 법당 위에 한 칸 작은 위층과 지붕을 한 번 더 얹는다
 function twoStoryHall(w, d, h) {
-  const g = hall(w, d, h, { bays: 5, plinth: 0.8 });
-  const up = hall(w * 0.62, d * 0.62, h * 0.7, { bays: 3, plinth: 0.01 }); up.position.y = 0.8 + h + 0.2 + Math.min(w, d) * 0.42 * 0.45; g.add(up);
-  return g;
+  const g = hallCode(w, d, h, { bays: 5, plinth: 0.8 });
+  const up = hallCode(w * 0.62, d * 0.62, h * 0.7, { bays: 3, plinth: 0.01 }); up.position.y = 0.8 + h + 0.2 + Math.min(w, d) * 0.42 * 0.45; g.add(up);
+  return swap('v_hall2', g);
 }
 // 땅속에서 하나씩 솟아오르게(미래 복원): 순서대로 늦춰서 올린다
 function riseUp(items) {

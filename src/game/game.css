@@ -512,3 +512,33 @@ h1,h2,h3,.ttl h2,.brand b,.spirit b,.hcard b,#critique .title,.nx b,.ex b,.real 
   .lf-skip{top:10px;right:10px}
 }
 @media (prefers-reduced-motion:reduce){.lf-page{transition:opacity .2s}.lf-page.turned{transform:none}#leaflet{animation:none}}
+/* 미륵사지 리플렛: 짙은 청록 표지와 금빛 소제목 */
+#leaflet.lf-theme-mireuk{--lf-navy:#22544f;--lf-navy2:#173c38;--lf-blue:#b08a3e;--lf-green:#4a4030}
+#leaflet.lf-theme-mireuk .lf-cover::after{background:linear-gradient(180deg,rgba(23,60,56,.55) 0%,rgba(34,84,79,.78) 45%,rgba(23,60,56,.95) 100%)}
+#leaflet.lf-theme-mireuk .lf-head span{color:#7d8a86}
+#leaflet.lf-theme-mireuk .lf-go{color:var(--lf-navy)}
+.lf-cols.lf-one{grid-template-columns:1fr}
+.lf-cols.lf-one .lf-sec{display:grid;grid-template-columns:1fr 1.2fr;grid-auto-rows:min-content;gap:8px 28px;align-items:start;align-content:start}
+.lf-cols.lf-one .lf-sec h3,.lf-cols.lf-one .lf-sec p{grid-column:1}
+.lf-cols.lf-one .lf-sec figure{grid-column:2;grid-row:1 / span 6;margin:0}
+@media (max-width:760px){.lf-cols.lf-one .lf-sec{display:flex}}
+/* 세계의 탑 카드: 무너지기 시작하는 세기를 크게 */
+.ex-world{display:grid;place-items:center;width:100%;aspect-ratio:4/3;border-radius:6px;background:linear-gradient(180deg,#2c4677,#1f3561);color:#fff;font-family:var(--D);font-size:26px;letter-spacing:.02em}
+.ex-world::after{content:" 에서 무너짐";font-size:11px;font-family:var(--B);opacity:.8;margin-left:2px}
+/* 셋째 마당 대화창 */
+.chat{border:1px solid rgba(201,190,166,.8);border-radius:var(--r-md);background:#f3efe4;padding:10px 12px 12px;margin:10px 0}
+.chat h3{margin:0 0 6px}
+.chat-log{max-height:190px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:2px 0 8px}
+.chat-log p{margin:0;padding:7px 10px;border-radius:12px;font-size:14px;line-height:1.55;max-width:88%;word-break:keep-all;overflow-wrap:break-word}
+.chat-log p.ai{background:#fff;border:1px solid #e2dccd;align-self:flex-start;border-bottom-left-radius:4px}
+.chat-log p.me{background:var(--pat);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.chat-log p.busy{opacity:.7;font-style:italic}
+.chat-form{display:flex;gap:6px}
+.chat-form input{flex:1;min-width:0;font:inherit;font-size:15px;padding:10px 12px;border-radius:var(--r-sm);border:1px solid #b9b09c;background:#fff;color:var(--ink)}
+.chat-form input:focus{outline:2px solid var(--gold);outline-offset:1px}
+.chat-form .btn{white-space:nowrap}
+.chat-form .btn{flex:none;width:auto;min-width:0;padding:0 16px}
+.chat-form input{flex:1 1 auto}
+.lf-end{padding:0 34px 4px;display:flex;justify-content:flex-end}
+.lf-white .lf-go{background:var(--lf-navy);color:#fff}
+.lf-green .lf-go{background:#fff;color:var(--lf-green)}

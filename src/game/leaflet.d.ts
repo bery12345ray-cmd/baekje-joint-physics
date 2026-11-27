@@ -1,1 +1,1 @@
-export function showLeaflet(): void
+export function showLeaflet(key?: 'jeong' | 'mireuk', opts?: { once?: boolean }): void

@@ -11,7 +11,6 @@ export default function App() {
     if (started) return
     started = true
     void import('./game/game.js')
-    void import('./game/leaflet.js').then(m => m.showLeaflet())
   }, [])
   return <div id="game-root" dangerouslySetInnerHTML={{ __html: markup }} />
 }

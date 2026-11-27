@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 export const PART_NAMES = {
   jidae: '지대석', gidan: '기단 면석·갑석', tapsin1: '1층 탑신석(우주)', tapsin: '탑신석', batchim: '옥개받침', okgae: '옥개석',
   jangsik: '장식석', noban: '노반', bokbal: '복발·보주',
-  mgidan: '미륵사지 단층 기단', mgidung: '민흘림 돌기둥', msimju: '심주석', mbyeok: '문 낸 벽석', mchangbang: '창방·평방', mbatchim: '3단 층급받침', mokgae: '미륵사지 지붕돌', mtapsin: '미륵사지 몸돌',
+  mgidan: '미륵사지 단층 기단', mgidung: '민흘림 돌기둥', msimju: '심주석', mbyeok: '문 낸 벽석', mchangbang: '창방·평방', mbatchim: '3단 층급받침', mokgae: '미륵사지 지붕돌', mtapsin: '미륵사지 몸돌', w_truss: '철골 트러스', w_drum: '원통 층', w_pod: '전망대', w_spire: '첨탑', w_clock: '시계탑 몸체', w_brick: '벽돌 탑 층',
   wbase: '석조 기단', gidung: '기둥', simju: '심주', gongpo: '창방·공포', cheoma: '처마 서까래', giwa: '기와지붕', sangryun: '상륜',
 };
 
@@ -82,7 +82,7 @@ export function buildPart(part, size, M, opts = {}) {
   if (MODELS[part]) return modelPart(part, size, M, { ink: opts.ink !== false, tone: opts.tone });
   return buildPartCode(part, size, M, opts);
 }
-function buildPartCode(part, [w, h, d], M, { corner = [1, 1], ink = true, wall = 0, peak = 0, tone } = {}) {
+function buildPartCode(part, [w, h, d], M, { corner = [1, 1], ink = true, wall = 0, peak = 0, tone, ...po } = {}) {
   const G = new THREE.Group();
   const add = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true;
     if (ink) { const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 28), INK); m.add(e); } G.add(m); return m; };
@@ -166,6 +166,69 @@ function buildPartCode(part, [w, h, d], M, { corner = [1, 1], ink = true, wall =
       for (let i = 0; i < 9; i++) add(new THREE.TorusGeometry(0.1 - i * 0.004, 0.022, 6, 16), M.gold, 0, -h / 2 + 0.2 + i * 0.07, 0).rotation.x = Math.PI / 2;
       const flame = add(new THREE.SphereGeometry(0.1, 12, 8), M.gold, 0, h / 2 - 0.17, 0); flame.scale.set(1, 0.45, 1);
       add(new THREE.SphereGeometry(0.06, 12, 10), M.gold, 0, h / 2 - 0.06, 0);
+      break;
+    }
+    // ---------- 세계의 탑(셋째 마당 예시, 실제 크기). po: { top: 위/아래 너비 비, col: 색 } ----------
+    case 'w_truss': { // 철골 트러스 한 구간(에펠탑·도쿄타워): 네 모서리 기둥 + 가새 + 얇은 바닥판
+      const top = po.top || 0.5, col = new THREE.MeshStandardMaterial({ color: po.col || 0x6b4f3a, roughness: 0.6, metalness: 0.3 });
+      const bw = w / 2, tw = w * top / 2, r = Math.max(0.12, w * 0.025);
+      for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const a0 = new THREE.Vector3(sx * bw, -h / 2, sz * bw), a1 = new THREE.Vector3(sx * tw, h / 2, sz * tw);
+        const L = a0.distanceTo(a1), m = add(new THREE.CylinderGeometry(r * 0.8, r, L, 6), col, (a0.x + a1.x) / 2, 0, (a0.z + a1.z) / 2);
+        m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), a1.clone().sub(a0).normalize());
+      }
+      const n = Math.max(2, Math.min(10, Math.round(h / Math.max(w * 0.35, 1.5))));
+      for (let i = 0; i <= n; i++) { // 마디마다 가로대 + 엇갈린 가새
+        const y = -h / 2 + h * i / n, hw = bw + (tw - bw) * i / n;
+        for (const [x, z, len, rot] of [[0, -hw, 2 * hw, 0], [0, hw, 2 * hw, 0], [-hw, 0, 2 * hw, 1], [hw, 0, 2 * hw, 1]]) {
+          const g = add(new THREE.BoxGeometry(len, r * 0.8, r * 0.8), col, x, y, z); if (rot) g.rotation.y = Math.PI / 2;
+        }
+        if (i < n) {
+          const y2 = -h / 2 + h * (i + 1) / n, hw2 = bw + (tw - bw) * (i + 1) / n;
+          for (const side of [0, 1, 2, 3]) {
+            const ang = side * Math.PI / 2, c = Math.cos(ang), sn = Math.sin(ang);
+            const p0 = new THREE.Vector3(-hw, y, -hw), p1 = new THREE.Vector3(hw2, y2, -hw2);
+            const q0 = new THREE.Vector3(p0.x * c - p0.z * sn, p0.y, p0.x * sn + p0.z * c), q1 = new THREE.Vector3(p1.x * c - p1.z * sn, p1.y, p1.x * sn + p1.z * c);
+            const L = q0.distanceTo(q1), m = add(new THREE.CylinderGeometry(r * 0.4, r * 0.4, L, 4), col, (q0.x + q1.x) / 2, (q0.y + q1.y) / 2, (q0.z + q1.z) / 2);
+            m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), q1.clone().sub(q0).normalize());
+          }
+        }
+      }
+      if (po.deck) box(w * Math.max(top, 0.6) * 1.05, Math.min(h * 0.05, 2.2), w * Math.max(top, 0.6) * 1.05, col, 0, h / 2 - Math.min(h * 0.025, 1.1), 0);
+      break;
+    }
+    case 'w_drum': { // 원통 한 층(피사의 사탑·서울타워 기둥): 아케이드 기둥 고리 선택
+      const col = new THREE.MeshStandardMaterial({ color: po.col || 0xe9e4d6, roughness: 0.7 });
+      add(new THREE.CylinderGeometry(w * 0.44, w * 0.46, h, 32), col);
+      if (po.arcade) { for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; add(new THREE.CylinderGeometry(w * 0.025, w * 0.025, h * 0.8, 6), col, Math.cos(a) * w * 0.49, -h * 0.05, Math.sin(a) * w * 0.49); }
+        add(new THREE.CylinderGeometry(w * 0.5, w * 0.5, h * 0.1, 32), col, 0, h * 0.45, 0); }
+      break;
+    }
+    case 'w_pod': { // 전망대(서울타워 위)
+      const col = new THREE.MeshStandardMaterial({ color: po.col || 0xdedad0, roughness: 0.5 });
+      add(new THREE.CylinderGeometry(w * 0.5, w * 0.36, h * 0.7, 32), col, 0, -h * 0.15, 0);
+      add(new THREE.CylinderGeometry(w * 0.48, w * 0.5, h * 0.3, 32), new THREE.MeshStandardMaterial({ color: 0x3d4a55, roughness: 0.2 }), 0, h * 0.35, 0);
+      break;
+    }
+    case 'w_spire': { // 첨탑·안테나
+      const col = new THREE.MeshStandardMaterial({ color: po.col || 0xcfc9bd, roughness: 0.5, metalness: 0.2 });
+      add(new THREE.CylinderGeometry(w * 0.08, w * 0.5, h, 12), col);
+      break;
+    }
+    case 'w_clock': { // 빅벤 몸체: 사각 탑 + 네 면 시계
+      const col = new THREE.MeshStandardMaterial({ color: 0xc8b48a, roughness: 0.8 });
+      box(w, h, d, col, 0, 0, 0);
+      const face = new THREE.MeshStandardMaterial({ color: 0xf3efe2, roughness: 0.5 });
+      if (po.clock) for (const [x, z, ry] of [[0, d / 2 + 0.05, 0], [0, -d / 2 - 0.05, Math.PI], [w / 2 + 0.05, 0, Math.PI / 2], [-w / 2 - 0.05, 0, -Math.PI / 2]]) { const c = add(new THREE.CircleGeometry(w * 0.36, 32), face, x, h * 0.1, z); c.rotation.y = ry; }
+      for (let i = 1; i < 6; i++) box(w * 1.03, h * 0.012, d * 1.03, col, 0, -h / 2 + h * i / 6, 0);
+      break;
+    }
+    case 'w_brick': { // 벽돌 탑 한 층(대안탑): 몸체 + 얇게 내민 처마 + 아치 창
+      const col = new THREE.MeshStandardMaterial({ color: 0xb79b78, roughness: 0.9 });
+      box(w * 0.9, h * 0.86, d * 0.9, col, 0, -h * 0.07, 0);
+      box(w, h * 0.14, d, col, 0, h * 0.43, 0);
+      const dark = new THREE.MeshStandardMaterial({ color: 0x3a2d22, roughness: 1 });
+      for (const [x, z, ry] of [[0, d * 0.45 + 0.03, 0], [0, -d * 0.45 - 0.03, Math.PI], [w * 0.45 + 0.03, 0, Math.PI / 2], [-w * 0.45 - 0.03, 0, -Math.PI / 2]]) { const g = add(new THREE.PlaneGeometry(w * 0.16, h * 0.32), dark, x, -h * 0.05, z); g.rotation.y = ry; }
       break;
     }
     default: return null;

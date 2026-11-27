@@ -9,6 +9,7 @@ export const JOINTS = {
   flex:   { k: 150,  c: 12,  breakDeg: 20 },
   rigid:  { k: 1500, c: 2,   breakDeg: 1.6 },
   mortar: { k: 400,  c: 4,   breakDeg: 3 },
+  steel:  { k: 3000, c: 40,  breakDeg: 999 }, // 세계의 탑: 정해진 세기(breakAt)까지는 한 몸으로 버티다가 한꺼번에 풀린다
 };
 // Peak ground acceleration (m/s²) for a magnitude-like intensity 1.0–7.0.
 export const QUAKE = { base: 0.2, growth: 2.0, freq: 1.4 }; // 지진 세기 조율값: 바르게 지은 탑은 기본 세기 5를 버티고, 잘못 지은 탑은 무너진다
@@ -26,9 +27,9 @@ export class Sim {
     this.world.numSolverIterations = 8;
     this.queue = new R.EventQueue(true);
     this.ground = this.world.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(0, -0.5, 0));
-    this.world.createCollider(R.ColliderDesc.cuboid(20, 0.5, 20).setFriction(0.9), this.ground);
+    this.world.createCollider(R.ColliderDesc.cuboid(160, 0.5, 160).setFriction(0.9), this.ground);
     this.blocks = []; this.joints = []; this.byCollider = new Map();
-    this.t = 0; this.quake = null; this.gx = 0; this.gz = 0; this.mag = 0;
+    this.t = 0; this.quake = null; this.gx = 0; this.gz = 0; this.mag = 0; this.breakAt = 0; this.broke = false; this.armor = false;
     this.onAdd = this.onAdd || (() => {}); this.onRemove = this.onRemove || (() => {});
     this.onEvent = this.onEvent || (() => {});
   }
@@ -42,9 +43,10 @@ export class Sim {
     const cd = R.ColliderDesc.cuboid(size[0] / 2, size[1] / 2, size[2] / 2)
       .setDensity(m.density).setFriction(m.friction).setRestitution(m.restitution);
     const strength = m.strength && breakable ? m.strength * size[0] * size[2] : 0;
-    if (strength) cd.setActiveEvents(R.ActiveEvents.CONTACT_FORCE_EVENTS).setContactForceEventThreshold(strength);
+    const vol = size[0] * size[1] * size[2], impact = strength ? 0 : m.density * vol * 9.81 * 6; // 돌·벽돌: 제 무게의 6배가 넘는 충격이면 깨진다
+    if (strength || impact) cd.setActiveEvents(R.ActiveEvents.CONTACT_FORCE_EVENTS).setContactForceEventThreshold(strength || impact);
     const col = this.world.createCollider(cd, body);
-    const b = { id: uid++, mat, size: [...size], body, col, strength, dmg: 0, broken: !breakable && m.strength ? false : false, tint, part, po };
+    const b = { id: uid++, mat, size: [...size], body, col, strength, impact, dmg: 0, broken: !breakable && m.strength ? false : false, tint, part, po };
     b.mass = body.mass();
     this.blocks.push(b); this.byCollider.set(col.handle, b);
     this.onAdd(b);
@@ -78,7 +80,7 @@ export class Sim {
     // 진단 근거: 응력 초과 부재, 무게중심 수평 이탈(밑동 반폭 대비·기울기 각도)을 지진 동안 모은다
     this.quake = { t: 0, mode, mag, phase: Math.random() * 6.28, passed: 0, collapsed: false, log: [],
       stressed: new Set(), base0: st.base, comY0: st.comY, com0: this.comXZ(), comShift: 0 };
-    this.mag = mode === 'ramp' ? 1 : mag;
+    this.mag = mode === 'ramp' ? 1 : mag; this.broke = false;
   }
   stopQuake() { this.quake = null; this.mag = 0; }
   // Snapshot resting state so damage is measured relative to it.
@@ -140,13 +142,47 @@ export class Sim {
       const f = ev.totalForceMagnitude();
       for (const h of [ev.collider1(), ev.collider2()]) {
         const b = this.byCollider.get(h);
-        if (b && b.strength) hits.set(b, Math.max(hits.get(b) || 0, f));
+        if (b && (b.strength || b.impact)) hits.set(b, Math.max(hits.get(b) || 0, f));
       }
     });
     for (const [b, f] of hits) {
-      if (f > b.strength) { if (q) q.stressed.add(b.id); b.dmg += dt * f / b.strength; if (b.dmg > 0.3) this.breakWood(b); }
+      if (b.strength) { if (f > b.strength) { if (q) q.stressed.add(b.id); b.dmg += dt * f / b.strength; if (b.dmg > 0.3) this.breakWood(b); } }
+      else if (q && (q.collapsed || this.broke) && !this.armor && f > b.impact && !b.chip && this.blocks.length < 260) this.shatter(b); // 무너지며 부딪힌 돌이 깨진다
     }
+    if (q && this.breakAt && !this.broke && this.mag >= this.breakAt && q.t > 1.5) this.collapseNow();
     if (q) this.judge();
+  }
+  collapseNow() { // 정해진 세기에서 구조가 버티지 못함: 이음이 풀리고, 위쪽부터 기울며 쓰러지고, 큰 부재는 조각난다
+    this.broke = true;
+    for (const j of [...this.joints]) this.removeJoint(j);
+    const dir = Math.random() * Math.PI * 2, H = this.height() || 1;
+    for (const b of [...this.blocks]) {
+      b.col.setFriction(0.25);
+      const p = b.body.translation(), k = Math.max(0, p.y / H);
+      b.body.applyImpulse({ x: Math.cos(dir) * b.mass * (1 + 5 * k), y: 0, z: Math.sin(dir) * b.mass * (1 + 5 * k) }, true);
+      b.body.applyTorqueImpulse({ x: Math.sin(dir) * b.mass * k * 2, y: 0, z: -Math.cos(dir) * b.mass * k * 2 }, true);
+    }
+    for (const b of [...this.blocks]) if (Math.max(...b.size) > 6 && this.blocks.length < 200) this.shatter(b);
+    this.onEvent({ type: 'giveway', mag: this.mag });
+  }
+  shatter(b) { // 돌·벽돌·철골 부재를 여러 조각으로 깨뜨린다(조각은 다시 깨지지 않음)
+    if (!this.blocks.includes(b)) return;
+    const p = b.body.translation(), r = b.body.rotation(), v = b.body.linvel(), [w, h, d] = b.size;
+    const nx = w > 0.6 ? 2 : 1, ny = h > 0.6 ? (h > w * 3 ? 3 : 2) : 1, nz = d > 0.6 ? 2 : 1;
+    if (nx * ny * nz < 2) { b.chip = true; return; }
+    this.removeBlock(b);
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
+      const sz = [w / nx * (0.8 + Math.random() * 0.15), h / ny * (0.8 + Math.random() * 0.15), d / nz * (0.8 + Math.random() * 0.15)];
+      const off = rotate(r, [(i + 0.5) * w / nx - w / 2, (j + 0.5) * h / ny - h / 2, (k + 0.5) * d / nz - d / 2]);
+      const keep = b.part && b.part.startsWith('w_'); // 철골·원통 같은 세계 탑 부재는 작은 조각도 같은 모양, 돌은 깨진 돌덩이
+      const nb = this.addBlock({ mat: b.mat, size: sz, pos: [p.x + off[0] - this.gx, p.y + off[1], p.z + off[2] - this.gz], breakable: false, part: keep ? b.part : undefined, tint: keep ? b.tint : b.mat === 'pine' ? 'broken' : 'chip', po: b.po });
+      nb.body.setRotation(r, true);
+      const s = 0.5 + Math.random() * 0.7;
+      nb.body.setLinvel({ x: v.x + off[0] * s, y: v.y + Math.abs(off[1]) * s * 0.5, z: v.z + off[2] * s }, true);
+      nb.body.setAngvel({ x: Math.random() * 4 - 2, y: Math.random() * 4 - 2, z: Math.random() * 4 - 2 }, true);
+      nb.chip = true; nb.broken = true; nb.fallen = true; nb.p0 = b.p0; nb.q0 = b.q0;
+    }
+    this.onEvent({ type: 'shatter', pos: [p.x, p.y, p.z], size: Math.max(w, h, d), mat: b.mat });
   }
   breakWood(b) {
     if (!this.blocks.includes(b)) return;
@@ -181,7 +217,7 @@ export class Sim {
     if (!q.collapsed) { const c = this.comXZ(); q.comShift = Math.max(q.comShift, Math.hypot(c[0] - q.com0[0], c[1] - q.com0[1])); }
     q.integrity = total ? 1 - fallenMass / total : 1;
     q.fallenN = fallenN;
-    if (!q.collapsed && (q.integrity < 0.85 || topFallen || fallenN >= 3)) {
+    if (!q.collapsed && !this.armor && (q.integrity < 0.85 || topFallen || fallenN >= 3)) {
       q.collapsed = true; q.collapseMag = this.mag; q.collapseT = q.t;
       q.reason = topFallen ? 'top' : fallenN >= 3 && q.integrity >= 0.85 ? 'pieces' : 'mass';
       this.onEvent({ type: 'collapse', mag: this.mag, reason: q.reason });
@@ -306,6 +342,35 @@ export function buildMireuksa(sim, { kind = 'flex', stories = 6, k = 1 } = {}) {
   if (typeof sim.step === 'number') sim.step = 4;
   for (let i = 1; i < stories; i++) mireukUpper(sim, st, 0.46 * Math.pow(0.96, i - 1));
 }
+
+// ---------- 세계의 탑(셋째 마당 예시): 실제 크기. 게임 단위 1 = 1.37m(정림사지 오층석탑 8.33m가 약 6.1) ----------
+const U = 1 / 1.37;
+function stackW(sim, segs, { lean = 0 } = {}) { // segs: [w(m), h(m), part, po, mat] 아래에서 위로. 이웃끼리 steel 이음
+  let y = 0, prev = null;
+  for (const [wm, hm, part, po, mat = 'granite'] of segs) {
+    const w = wm * U, h = hm * U, x = Math.tan(lean) * (y + h / 2);
+    const b = sim.addBlock({ mat, size: [w, h, w], part, po, pos: [x, y + h / 2 + 0.001, 0] });
+    sim.addJoint(b, prev, 'steel', [x + (sim.gx || 0), y, sim.gz || 0]);
+    prev = b; y += h;
+  }
+  return y;
+}
+export const WORLD = {
+  pisa: { name: '피사의 사탑', tag: '이탈리아 · 1372 · 56.7m', breakAt: 1.5, build: sim => stackW(sim, [
+    [15.5, 7.4, 'w_drum', { col: 0xece6d6 }], ...Array.from({ length: 6 }, () => [15.5, 6.6, 'w_drum', { col: 0xece6d6, arcade: 1 }]), [10.5, 9.7, 'w_drum', { col: 0xe4ddca, arcade: 1 }]], { lean: 3.97 * Math.PI / 180 }) },
+  dayan: { name: '시안 대안탑', tag: '중국 · 652 · 64.5m · 벽돌', breakAt: 2.5, build: sim => stackW(sim, [
+    [45, 4.2, 'jidae', {}, 'brick'], ...[25, 22.5, 20.5, 18.5, 16.5, 14.5, 12.5].map((w, i) => [w, i ? 8.2 : 9.5, 'w_brick', {}, 'brick']), [5, 4, 'w_spire', { col: 0x8a7258 }, 'brick']]) },
+  bigben: { name: '런던 엘리자베스 타워(빅벤)', tag: '영국 · 1859 · 96m', breakAt: 3, build: sim => stackW(sim, [
+    [12, 41, 'w_clock', {}], [12, 14, 'w_clock', { clock: 1 }], [10, 11, 'w_clock', {}], [9.5, 30, 'w_spire', { col: 0x4a4f55 }]]) },
+  tokyo: { name: '도쿄타워', tag: '일본 · 1958 · 333m · 철골', breakAt: 3.5, build: sim => stackW(sim, [
+    [80, 55, 'w_truss', { top: 0.55, col: 0xd0462f }], [44, 55, 'w_truss', { top: 0.55, col: 0xf2f0ea, deck: 1 }], [24, 60, 'w_truss', { top: 0.5, col: 0xd0462f }],
+    [12, 60, 'w_truss', { top: 0.5, col: 0xf2f0ea, deck: 1 }], [4, 103, 'w_spire', { col: 0xd0462f }]]) },
+  eiffel: { name: '에펠탑', tag: '프랑스 · 1889 · 330m · 철골', breakAt: 4, build: sim => stackW(sim, [
+    [125, 57, 'w_truss', { top: 0.5, deck: 1 }], [62, 58, 'w_truss', { top: 0.55, deck: 1 }], [34, 95, 'w_truss', { top: 0.38 }],
+    [13, 66, 'w_truss', { top: 0.45, deck: 1 }], [4, 54, 'w_spire', { col: 0x6b4f3a }]]) },
+  namsan: { name: '서울 N서울타워', tag: '한국 · 1975 · 236.7m', breakAt: 4.5, build: sim => stackW(sim, [
+    [20, 14, 'w_drum', { col: 0xe8e4da }], [10, 116, 'w_drum', { col: 0xe8e4da }], [28, 20, 'w_pod', {}], [7, 18, 'w_drum', { col: 0xe8e4da }], [3.5, 68.7, 'w_spire', { col: 0xd9d3c6 }]]) },
+};
 
 // 능사지 목탑(가상 복원): 석조 기단 위 5층 목조.
 export function buildNeungsa(sim, { kind = 'flex' } = {}) {

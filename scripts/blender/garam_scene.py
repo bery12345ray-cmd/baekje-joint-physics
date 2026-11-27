@@ -1,7 +1,7 @@
 # 정림사지 리플렛 그림용 3D 장면: 오늘날 절터(석탑·금당 터·강당 자리 보호각·회랑 터·연못·박물관)와 근접 장면을 블렌더로 짓고 렌더한다.
 # 실행: blender -b --factory-startup -P scripts/blender/garam_scene.py -- <models 폴더> <출력 폴더> [장면 이름들...]
 # 좌표: 게임 마을(village.js)과 같은 단위. 게임 (x, z) → 블렌더 (x, -z), 북쪽이 +y.
-import bpy, bmesh, sys, os, math, random
+import bpy, bmesh, sys, os, math, random, json
 from mathutils import Vector
 
 args = sys.argv[sys.argv.index('--') + 1:]
@@ -146,7 +146,7 @@ def pond(cx, cy, w, d):
     box(w, d, 0.1, (cx, cy, 0.22), M['water'])
 
 # ---------- 석탑(게임과 같은 실물 비례, 블렌더 부재 glb) ----------
-def place(part, size, z0, x=0, y=0):
+def place(part, size, z0, x=0, y=0, rot=0.0):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=os.path.join(src, part + '.glb'))
     objs = [o for o in bpy.data.objects if o not in before and o.type == 'MESH']
@@ -160,7 +160,7 @@ def place(part, size, z0, x=0, y=0):
         o.parent = root; o.location = o.location - ctr
         for i, sl in enumerate(o.material_slots):
             sl.material = M['granite_dark'] if sl.material and 'dark' in sl.material.name else M['granite']
-    root.scale = (size[0] / sz.x, size[2] / sz.y, size[1] / sz.z); root.location = (x, y, z0 + size[1] / 2)
+    root.scale = (size[0] / sz.x, size[2] / sz.y, size[1] / sz.z); root.location = (x, y, z0 + size[1] / 2); root.rotation_euler.z = rot
 
 def stone_pagoda():
     z = 0
@@ -312,6 +312,147 @@ def shot(name, loc, target, lens=35, w=1400, h=930, samples=int(os.environ.get('
     sc.render.image_settings.file_format = 'JPEG'; sc.render.image_settings.quality = 88
     sc.render.filepath = os.path.join(os.path.abspath(out), name + '.jpg')
     bpy.ops.render.render(write_still=True); print('rendered', name)
+
+# ---------- 익산 미륵사지(오늘날): 서탑(6층), 동탑(1992 복원 9층), 3원 가람 터 ----------
+def mireuk_pagoda(ox, oy, stories=6):
+    # 게임 buildMireuksa와 같은 치수
+    place('mgidan', (5.0, 0.38, 5.0), 0, ox, oy); z = 0.38
+    w = 3.8; d = w / 2 - 0.18; h = 1.35
+    for (x, y) in [(-d, -d), (d, -d), (-d, d), (d, d)]:
+        place('mgidung', (0.36, h, 0.36), z, ox + x, oy + y)
+    place('msimju', (0.52, h, 0.52), z, ox, oy)
+    L = w - 0.72
+    place('mbyeok', (L, h, 0.2), z, ox, oy - d); place('mbyeok', (L, h, 0.2), z, ox, oy + d, math.pi)
+    place('mbyeok', (L, h, 0.2), z, ox - d, oy, math.pi / 2); place('mbyeok', (L, h, 0.2), z, ox + d, oy, -math.pi / 2)
+    z += h
+    place('mchangbang', (w + 0.1, 0.24, w + 0.1), z, ox, oy); z += 0.24
+    place('mbatchim', (w * 1.12, 0.2, w * 1.12), z, ox, oy); z += 0.2
+    place('mokgae', (w * 1.42, 0.2, w * 1.42), z, ox, oy); z += 0.2
+    for i in range(1, stories):
+        w *= 0.93; hh = 0.46 * 0.96 ** (i - 1)
+        place('mtapsin', (w, hh, w), z, ox, oy); z += hh
+        place('mbatchim', (w * 1.12, 0.2, w * 1.12), z, ox, oy); z += 0.2
+        place('mokgae', (w * 1.42, 0.2, w * 1.42), z, ox, oy); z += 0.2
+    if stories >= 9:  # 동탑: 노반과 상륜 일부
+        place('noban', (w * 0.7, 0.35, w * 0.7), z, ox, oy); z += 0.35
+        cyl(0.08, 2.2, (ox, oy, z + 1.1), M['iron'], 10)
+        for k in range(5): cyl(0.35 - k * 0.04, 0.06, (ox, oy, z + 0.4 + k * 0.32), M['iron'], 16)
+    return z
+
+def site_mireuk():
+    box(400, 400, 0.2, (0, 0, -0.1), M['lawn'])
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=90, location=(0, 150, -40)); o = C.active_object; o.scale = (1.6, 0.8, 0.95); o.data.materials.append(M['leaf'])  # 미륵산
+    for (hx, hy, hr) in [(-140, 90, 50), (150, 80, 55)]:
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=hr, location=(hx, hy, -hr * 0.6)); o = C.active_object; o.scale.z = 0.5; o.data.materials.append(M['leaf'])
+    # 세 원(동·중·서): 탑과 금당이 남북 한 줄, 가운데가 가장 크다
+    for cx, big in ((-20, False), (0, True), (20, False)):
+        box(16 if not big else 20, 1.7, 0.28, (cx, -14, 0.14), M['plinth'], 0.02)                      # 남회랑 터
+        box(3.2, 2.4, 0.35, (cx, -14, 0.18), M['plinth'], 0.03)                                         # 중문 터
+        gw, gd = (10, 7) if big else (8, 5.5)
+        box(gw, gd, 0.5, (cx, 9, 0.25), M['plinth'], 0.04)                                              # 금당 터
+        for i in range(5):
+            for j in range(4):
+                cyl(0.22, 0.6, (cx - gw / 2 + 1 + i * (gw - 2) / 4, 9 - gd / 2 + 0.8 + j * (gd - 1.6) / 3, 0.75), M['granite'], 4)  # 높은 초석(마름모)
+    for x in (-30, -10, 10, 30):
+        box(1.7, 40, 0.28, (x, 3, 0.14), M['plinth'], 0.02)                                           # 원을 나누는 회랑 터
+    box(64, 1.7, 0.28, (0, 23, 0.14), M['plinth'], 0.02); box(30, 9, 0.5, (0, 27, 0.25), M['plinth'], 0.04)  # 북회랑·강당 터
+    box(10, 10, 0.6, (0, 0, 0.3), M['plinth'], 0.04)                                                   # 가운데 목탑 터
+    for x in (-3.5, 3.5):
+        box(10, 7, 0.25, (x * 6, -32, 0.1), M['granite'], 0.02); box(9, 6, 0.08, (x * 6, -32, 0.22), M['water'])  # 남쪽 연못 둘
+    for x in (-3.0, 3.0):  # 당간지주
+        box(0.5, 0.7, 4.0, (x, -24, 2.0), M['granite'], 0.06); box(0.5, 0.7, 4.0, (x + 0.9, -24, 2.0), M['granite'], 0.06)
+    mireuk_pagoda(-20, 0, 6)     # 서탑(6층까지 남은 탑을 정비)
+    mireuk_pagoda(20, 0, 9)      # 동탑(1992 복원 9층)
+    for (x, y) in [(-40, -10), (-42, 12), (40, -8), (42, 14), (-12, -40), (14, -42), (-36, 30), (36, 32)]:
+        tree(x, y, random.uniform(1.0, 1.4))
+
+def simju_set(ox=400):
+    box(6, 6, 0.1, (ox, 0, -0.05), M['plinth'])
+    box(1.6, 1.6, 1.2, (ox, 0, 0.6), M['granite'], 0.03)          # 심주석 윗돌
+    box(0.34, 0.34, 0.05, (ox, 0, 1.19), M['cloth'])               # 사리공
+    box(1.5, 0.012, 0.004, (ox, 0, 1.201), M['ink']); box(0.012, 1.5, 0.004, (ox, 0, 1.201), M['ink'])  # 십자 먹선
+    gold = mat('goldm', (0.85, 0.62, 0.2), 0.25); gold.node_tree.nodes['Principled BSDF'].inputs['Metallic'].default_value = 1.0
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.13, location=(ox + 0.55, -0.5, 1.33)); o = C.active_object; o.scale.z = 1.2; o.data.materials.append(gold); bpy.ops.object.shade_smooth()   # 사리호
+    cyl(0.05, 0.08, (ox + 0.55, -0.5, 1.5), gold, 16)
+    b = box(0.32, 0.2, 0.006, (ox - 0.45, -0.45, 1.205), gold, 0.002, 0.3)    # 금제 사리봉영기(얇은 금판)
+    cyl(0.16, 0.12, (ox + 0.3, 0.45, 1.26), M['iron'], 24)        # 청동합
+
+def geumdang_base(ox=-400):
+    box(10, 7, 0.3, (ox, 0, 0.15), M['plinth'], 0.03)
+    for i in range(5):
+        for j in range(4):
+            x, y = ox - 4 + i * 2, -2.6 + j * 1.73
+            o = box(0.55, 0.55, 1.0, (x, y, 0.8), M['granite'], 0.04, math.pi / 4)   # 마름모로 놓은 1m 초석
+    for j in range(4):
+        box(9, 0.25, 0.25, (ox, -2.6 + j * 1.73, 1.42), M['bark'])        # 귀틀목
+    box(9.4, 6.6, 0.08, (ox, 0, 1.6), M['bark'])                           # 마루(일부만)
+    for i in range(5): box(0.25, 6.0, 0.06, (ox - 4 + i * 2, 0, 1.68), M['bark'])
+
+# ---------- 마을 건물 모델(게임 village.js가 불러 쓴다): 원점에 하나씩 짓고 glb로 내보낸다 ----------
+def clear_objs():
+    for o in list(bpy.data.objects): bpy.data.objects.remove(o, do_unlink=True)
+
+def export_asset(name, outdir):
+    for o in bpy.data.objects: o.select_set(o.type == 'MESH')
+    os.makedirs(outdir, exist_ok=True)
+    bpy.ops.export_scene.gltf(filepath=os.path.join(outdir, name + '.glb'), export_format='GLB', use_selection=True, export_apply=True, export_yup=True, export_materials='EXPORT')
+    print('exported', name)
+
+def house_thatch():  # 초가집: 돌 기단 + 흙벽 + 나무 문 + 둥근 초가지붕
+    box(3.6, 3.0, 0.3, (0, 0, 0.15), M['plinth'], 0.04)
+    box(2.8, 2.2, 1.4, (0, 0, 0.3 + 0.7), M['mud'], 0.03)
+    for x in (-1.4, 1.4):
+        for y in (-1.1, 1.1): cyl(0.09, 1.4, (x, y, 1.0), M['bark'], 8)
+    box(0.6, 0.06, 1.0, (0, -1.13, 0.8), M['bark'])
+    box(0.5, 0.05, 0.4, (0.9, -1.13, 1.2), M['bark'])
+    r = hip_roof(4.0, 3.4, 1.35, (0, 0, 1.7), M['straw'], lift=0.04, eave=0.18, n=14)
+    md = r.modifiers.new('s', 'SUBSURF'); md.levels = 1
+
+def house_tile():  # 기와집: 높은 기단 + 붉은 기둥 + 흰 벽 + 기와지붕
+    hall(0, 0, 3.0, 2.2, 1.5, bays=3, plinth=0.35)
+
+def corridor_unit():  # 회랑 한 칸(길이 6): 기단 + 붉은 기둥 두 줄 + 뒷벽 + 긴 기와지붕
+    L = 6.0
+    box(L, 1.8, 0.3, (0, 0, 0.15), M['plinth'], 0.03)
+    for k in range(5):
+        x = -L / 2 + 0.6 + k * (L - 1.2) / 4
+        for y in (-0.6, 0.6): cyl(0.09, 1.7, (x, y, 0.3 + 0.85), M['red'], 10)
+    box(L, 0.12, 1.7, (0, 0.62, 1.15), M['plaster'])
+    box(L, 0.16, 0.16, (0, -0.6, 2.0), M['green']); box(L, 0.16, 0.16, (0, 0.6, 2.0), M['green'])
+    hip_roof(L + 0.6, 2.6, 0.9, (0, 0, 2.06), M['giwa'], lift=0.12, eave=0.08)
+
+def two_story():  # 중층 금당: 아래 법당 위에 한 칸 작은 위층
+    hall(0, 0, 7.5, 5.2, 2.4, bays=5, plinth=0.8)
+    hall(0, 0, 4.6, 3.2, 1.6, bays=3, plinth=0.01, roofH=1.4)
+    for o in bpy.data.objects:
+        pass
+
+if os.environ.get('SCENE') == 'village':
+    outdir = os.path.join(os.path.abspath(src), 'village')
+    M['mud'] = mat('mud', (0.62, 0.52, 0.38), 0.95, 0.25, 6, 0.3)
+    M['straw'] = mat('straw', (0.70, 0.58, 0.34), 1.0, 0.4, 20, 0.6)
+    for name, fn in [('v_house', house_thatch), ('v_tile', house_tile), ('v_gate', lambda: hall(0, 0, 3.4, 2.4, 1.9, bays=3, plinth=0.4)),
+                     ('v_hall5', lambda: hall(0, 0, 7.5, 5.2, 2.6, bays=5, plinth=0.7)), ('v_hall7', lambda: hall(0, 0, 11.5, 5.2, 2.6, bays=7, plinth=0.6)),
+                     ('v_corridor', corridor_unit), ('v_tree', lambda: tree(0, 0, 1.0)), ('v_museum', lambda: museum(0, 0))]:
+        clear_objs(); fn(); export_asset(name, outdir)
+    # 중층 금당: 위층을 아래 지붕 위로 올린다
+    clear_objs(); hall(0, 0, 7.5, 5.2, 2.4, bays=5, plinth=0.8)
+    before = set(bpy.data.objects); hall(0, 0, 4.6, 3.2, 1.6, bays=3, plinth=0.01, roofH=1.4)
+    for o in set(bpy.data.objects) - before: o.location.z += 0.8 + 2.4 + 0.12 + 1.6
+    export_asset('v_hall2', outdir)
+    with open(os.path.join(outdir, 'manifest.json'), 'w') as f: json.dump(['v_house', 'v_tile', 'v_gate', 'v_hall5', 'v_hall7', 'v_corridor', 'v_tree', 'v_museum', 'v_hall2'], f)
+    sys.exit(0)
+
+if os.environ.get('SCENE') == 'mireuk':
+    site_mireuk(); simju_set(); geumdang_base()
+    sky(sun_el=34, sun_rot=135)
+    shot('mireuk-aerial', (46, -78, 42), (0, 2, 0), lens=30)
+    shot('mireuk-west', (-15.5, -10.5, 1.6), (-20, 0, 3.3), lens=32, w=1100, h=1300)
+    shot('mireuk-east', (25.5, -14.5, 1.8), (20, 0, 6.0), lens=30, w=1100, h=1300)
+    shot('mireuk-plan', (0, 2, 120), (0, 2.01, 0), lens=40)
+    shot('mireuk-simju', (400 + 1.4, -2.8, 3.0), (400, 0, 1.15), lens=40)
+    shot('mireuk-geumdang', (-400 + 7, -9, 4.0), (-400, 0, 0.8), lens=32)
+    sys.exit(0)
 
 site_today(); inscription(); tile_set(); buddha_set()
 sky()
