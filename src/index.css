@@ -1,0 +1,15 @@
+/* 게임 화면은 src/game/game.css가 데모와 똑같이 그린다.
+   Tailwind preflight(기본 스타일 초기화)는 데모 모양을 바꾸므로 넣지 않고, 테마 토큰과 유틸리티만 쓴다. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  --color-baekje-togi: #2e2b27;  /* 토기 흑회 */
+  --color-baekje-jeon: #e9e4d8;  /* 전돌 회백 */
+  --color-baekje-gold: #b8923a;  /* 금동 */
+  --color-baekje-pat: #3f7d6e;   /* 청동녹 */
+  --color-baekje-red: #a8452c;   /* 적갈 */
+
+  --font-serif: "Song Myung", serif;
+  --font-sans: "Gowun Dodum", system-ui, sans-serif;
+}

@@ -1,0 +1,31 @@
+<header>
+  <div class="brand"><img src="lotus.svg" alt="연화문 수막새 엠블럼"><div><b>백제 결구 물리학</b><span>百濟 結構 物理</span></div></div>
+  <nav id="tabs" aria-label="마당">
+    <a href="#stage1" data-stage="1" aria-current="step"><i>壹</i><span>목탑의 비밀</span></a><span class="beads" aria-hidden="true"></span>
+    <a href="#stage2" data-stage="2" aria-current="false"><i>貳</i><span>천년의 석탑</span></a><span class="beads" aria-hidden="true"></span>
+    <a href="#stage3" data-stage="3" aria-current="false"><i>參</i><span>나만의 백제 탑</span></a>
+  </nav>
+  <div class="bestw"><div id="xbar" aria-label="보조 도구"><button data-x="heritage">국가유산</button><button data-x="learn">학습 기록</button><button class="dev" data-x="fps" aria-pressed="false">FPS</button><button class="dev" data-x="perf" aria-pressed="false">저사양</button></div><span class="best"><span class="best-l">이 마당 최고</span> <b id="best">없음</b></span></div>
+</header>
+<div id="stage">
+  <div id="hud">
+    <div class="q"><span>지진 세기</span><strong id="hMag">0.0</strong><span id="segs"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+    <div><span>지반 가속도</span><strong id="hPga">0.00</strong></div>
+    <div><span>구조 건전도</span><strong id="hInt">100%</strong></div>
+    <div class="c"><span>무게중심</span><strong id="hCom">0.0</strong></div>
+  </div>
+  <div id="banner" role="status"></div>
+  <div id="fps" hidden></div>
+  <div id="notice" role="status"></div>
+  <button id="quickUndo" type="button" aria-label="되돌리기 (Ctrl+Z)" title="되돌리기 (Ctrl+Z)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>되돌리기<kbd>Ctrl+Z</kbd></button>
+  <div id="hint">드래그: 돌려 보기 · 휠/두 손가락: 확대</div>
+</div>
+<div id="ui">
+  <aside id="panel" class="tablet" aria-label="마당 설명과 설정"></aside>
+  <div id="tools" class="tablet" aria-label="샌드박스 도구" hidden></div>
+  <div id="next" class="tablet" aria-label="다음 부재 미리보기"></div>
+  <section id="dock" class="tablet" aria-label="지진 조작판"></section>
+</div>
+<div id="sheet" hidden><div class="sheet tablet" role="dialog" aria-modal="true" aria-labelledby="sheetTtl" tabindex="-1"></div></div>
+<div id="title" hidden><div class="title-in"><img src="lotus.svg" alt="" width="120" height="120"><h1>백제 결구 물리학</h1><p class="han">百濟 結構 物理</p><p>덜어낼수록 단단해진다</p><button class="btn red big" data-x="start">눌러서 시작</button></div></div>
+<div id="err"><p>3D 물리 엔진을 불러오지 못했습니다. WebGL과 WebAssembly를 지원하는 최신 브라우저에서 열어 주세요.</p></div>
