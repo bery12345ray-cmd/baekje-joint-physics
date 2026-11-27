@@ -13,6 +13,7 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 | 응력 경고 | 가마 주홍 | `#C44D34` | 응력 집중, 붕괴 위험 경고 |
 
 - 타이포그래피: 모든 글자를 **Pretendard Variable** 하나로 쓴다(SIL OFL, npm `pretendard`의 dynamic-subset woff2를 `src/App.tsx`에서 불러 직접 싣는다. 글자 범위별 92조각이라 한글도 필요한 만큼만 받는다. Google Fonts·명조는 쓰지 않는다). 명조 대신 굵기·크기로 위계: 제목 800, 소제목·숫자·강조 700, 단추 600, 본문 400~500(`game.css` 맨 아래 "타이포그래피" 블록). `--D`·`--B`와 Tailwind `--font-sans`/`--font-display` 모두 Pretendard. 캔버스에 그리는 글자(3D 이름표, 대화창 글자 모양)는 `fontReady()`(document.fonts.load + ready)로 글꼴을 받은 뒤에만 그린다(그 전에는 투명).
+  - 하나뿐인 예외: 오른쪽 판의 탑 이름 큰 제목("정림사지 오층석탑", "미륵사지 석탑", `.ttl h2.pagoda-ttl`)만 **부여군 정림사지체**(`public/fonts/Jeongnimsaji-B.otf`, `@font-face` "Jeongnimsaji", 700, font-display: swap, font-synthesis: none, 없으면 Pretendard). 1.4MB라 미리 받지 않고, 바꾸거나 잘라 쓰지 않는다. 라이선스: 상업적 이용·웹 임베딩 무료, 저작권 부여군.
 - UI 모티브: 연화문(연꽃무늬)과 와당(수막새) 문양을 UI 요소(버튼, 배지, 프레임, 로딩 등)에 활용.
 - 보조색: 정림사지 석탑 사진에서 딴 따뜻한 화강 회색 `--gran1` #CFC7BA · `--gran2` #9E968A · `--gran3` #6D665D. 공통 토큰: `--hair`(금동 실선 rgba(200,160,84,.38)), `--hair2`(화강 실선), `--pill`(둥근 알약 999px), `--fade`(180ms). 단추는 알약 모양, 판은 얇은 금동 실선(`game.css` 맨 아래 "머리띠 새 단장" 블록).
 

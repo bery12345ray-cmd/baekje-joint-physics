@@ -794,3 +794,6 @@ body{font-family:var(--B);font-weight:400;letter-spacing:-.01em;font-feature-set
 /* 손가락 기기: 조작 안내를 보이고(좁은 화면은 놀이 화면 오른쪽 위), R 대신 "처음부터" 단추 */
 body.touch #resetBtn kbd,body.touch #quickUndo kbd{display:none}
 @media(max-width:860px){body.touch #hint{display:block;position:absolute;top:10px;right:10px;left:auto;bottom:auto;width:auto;max-width:min(58%,300px);font-size:12px;padding:6px 10px}}
+/* 탑 이름 제목만 부여군 정림사지체(무료·상업 이용과 웹 임베딩 허용, 저작권 부여군). 1.4MB라 미리 받지 않고, 없으면 Pretendard */
+@font-face{font-family:"Jeongnimsaji";src:url(/fonts/Jeongnimsaji-B.otf) format("opentype");font-weight:700;font-style:normal;font-display:swap}
+.ttl h2.pagoda-ttl{font-family:"Jeongnimsaji",var(--D);font-weight:700;font-synthesis:none}

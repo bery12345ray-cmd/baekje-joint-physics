@@ -739,7 +739,7 @@ function toolsHTML() {
 }
 const facts = rows => `<dl class="facts2">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
 const tips = (h, list) => `<div class="tips"><h3>${h}</h3><ul>${list.map(t => `<li>${t}</li>`).join('')}</ul></div>`;
-const head = (small, big) => `<div class="ttl"><span>${small}</span><h2>${big}</h2></div>`;
+const head = (small, big, cls) => `<div class="ttl"><span>${small}</span><h2${cls ? ` class="${cls}"` : ''}>${big}</h2></div>`;
 const spirit = (h, t) => `<div class="spirit"><b>${h}</b><p>${t}</p></div>`;
 // ---------- 실제 탑 사진: 국가유산청 국가유산포털, 공공누리 제1유형(출처 표시). public/photos/, 원본 페이지는 CLAUDE.md ----------
 const KOGL1 = '사진: 국가유산청 국가유산포털 (공공누리 제1유형)';
@@ -804,7 +804,7 @@ function asmDock() {
 function panelHTML() {
   if (S.stage === 1) {
     const k = S.tut.kind, ready = S.tut.done >= TUT.length - 1;
-    return head('확장 마당 · 전북 익산', '미륵사지 석탑') + photo('mireuk')
+    return head('확장 마당 · 전북 익산', '미륵사지 석탑', 'pagoda-ttl') + photo('mireuk')
       + `<p class="lead">정림사지에서 배운 쌓기 방법을 다른 백제 석탑에도 써 보는 <b>확장 마당</b>이에요.</p>`
       + facts([['어디', '전북 익산 미륵사지'], ['언제', '639년, 백제 무왕 때'], ['특징', '우리나라에서 가장 오래되고 가장 큰 석탑'], ['남은 층', '6층 (원래 9층으로 봐요)'], ['문화유산', '국보']])
       + `<h3>쌓는 순서</h3><ol class="steps">${TUT.map(([t, d], i) => `<li class="${i < S.tut.done ? 'done' : i === S.tut.done ? 'now' : ''}"><i>${i + 1}</i><span>${t}${i === S.tut.done ? `${i < TUT.length - 1 ? ` <b class="cnt">${stepCount(i)}</b>` : ''}<small>${d}</small>` : ''}</span></li>`).join('')}</ol>`
@@ -816,7 +816,7 @@ function panelHTML() {
   }
   if (S.stage === 2) {
     const era = S.era || 'baekje';
-    return head('첫째 마당 · 충남 부여', '정림사지 오층석탑') + photo('jeong')
+    return head('첫째 마당 · 충남 부여', '정림사지 오층석탑', 'pagoda-ttl') + photo('jeong')
       + facts([['어디', '충남 부여 정림사지'], ['언제', '백제 사비 시대(600년대 무렵)'], ['재료', '화강암 149개를 짜 맞춤'], ['높이', '약 8.3m (아파트 3층쯤)'], ['문화유산', '국보']])
       + tips('왜 1,400년을 버텼을까?', ['<b>나무 탑을 돌로</b> 옮겼어요. 모서리 기둥은 나무 기둥, 얇은 지붕돌은 기와지붕을 닮았어요.', '<b>지붕돌이 얇고 넓어서</b> 위가 가볍고, 무게중심이 아래에 있어요.', '<b>위로 갈수록 조금씩 작아져서</b> 흔들려도 쓰러지지 않아요.'])
       + `<div class="spirit"><b>검이불루 화이불치</b><p>검소하지만 초라하지 않고, 화려하지만 지나치지 않다.<br>백제 사람들이 아름답다고 여긴 기준이에요. 이 탑도 꼭 필요한 만큼만 쌓아서 단단해요.</p></div>`
