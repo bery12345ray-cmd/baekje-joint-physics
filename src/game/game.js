@@ -554,36 +554,63 @@ function planAt(ev) {
   return { x, z, y, top, size, under, snap };
 }
 // ---------- 손가락 조작: 한 손가락으로 끌어 떼면 바로 놓인다(확인 묻지 않음). 두 손가락이 닿으면 놓기를 멈추고 지도 옮기기·확대만 ----------
-const touches = new Set(); let multi = false;
+// ---------- 손가락(휴대폰·태블릿) ----------
+// 한 손가락: 들고 있는 부재(금빛 상자) 위에서 시작하면 부재 옮기기(떼면 놓임), 빈 곳에서 시작하면 돌려 보기.
+// 두 손가락: 옮기기 + 벌려 확대(동시에). 손가락 기기에서는 금빛 상자를 탑 옆에 늘 띄워 두어 잡을 수 있게 한다.
+const touches = new Set(); let multi = false, fingerPiece = false;
+const isTouchUI = () => document.body.classList.contains('touch');
+if (matchMedia('(pointer: coarse)').matches || matchMedia('(hover: none)').matches) document.body.classList.add('touch');
 function commitDrop(p) {
   if (S.stage === 3) place(p);
   else if (held()) { placePiece([p.x, p.y, p.z], p.snap); ghost.visible = false; render(); }
 }
+// 금빛 상자를 놓아 둘 자리(손가락 기기): 정답 자리에서 비스듬히 떨어진 땅 위(정답을 알려 주지 않는다)
+function restGhost() {
+  if (!isTouchUI() || fingerPiece || multi || !placing() || S.stage === 3) return;
+  const it = held(); if (!it) return;
+  const x = it.pos[0] + 2.6, z = it.pos[2] + 2.6, { top } = surfaceTop(x, z, it.size[0], it.size[2]);
+  setGhost(it.size, it); ghost.position.set(x + sim.gx, top + it.size[1] / 2 + 0.005, z + sim.gz); ghostMat.color.set(0xb8923a); ghostMat.opacity = 0.55; ghost.visible = true;
+}
+// 손가락이 금빛 상자 위(화면에서 상자 둘레 + 28px)에 닿았는가
+const _gb = new THREE.Box3(), _gv = new THREE.Vector3();
+function hitsGhost(ev) {
+  if (!ghost.visible) return false;
+  const r = renderer.domElement.getBoundingClientRect(); _gb.setFromObject(ghost);
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (let i = 0; i < 8; i++) { _gv.set(i & 1 ? _gb.max.x : _gb.min.x, i & 2 ? _gb.max.y : _gb.min.y, i & 4 ? _gb.max.z : _gb.min.z).project(camera);
+    const sx = r.left + (_gv.x + 1) / 2 * r.width, sy = r.top + (1 - _gv.y) / 2 * r.height; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
+  return ev.clientX > x0 - 28 && ev.clientX < x1 + 28 && ev.clientY > y0 - 28 && ev.clientY < y1 + 28;
+}
 renderer.domElement.addEventListener('pointerdown', ev => {
   if (ev.pointerType !== 'touch') return;
+  if (!isTouchUI()) { document.body.classList.add('touch'); render(); }
   touches.add(ev.pointerId);
-  if (touches.size > 1) { multi = true; downAt = null; ghost.visible = false; } // 두 손가락: 지도 옮기기·확대만
+  if (touches.size === 1) { fingerPiece = placing() && hitsGhost(ev); controls.touches.ONE = fingerPiece ? null : THREE.TOUCH.ROTATE; } // OrbitControls보다 먼저(capture) 정한다
+  if (touches.size > 1) { multi = true; downAt = null; fingerPiece = false; } // 두 손가락: 지도 옮기기·확대만
 }, { capture: true });
 for (const t of ['pointerup', 'pointercancel']) renderer.domElement.addEventListener(t, ev => {
   if (ev.pointerType !== 'touch') return;
   touches.delete(ev.pointerId);
-  if (!touches.size) setTimeout(() => { multi = false; }, 0);
+  if (!touches.size) setTimeout(() => { multi = false; fingerPiece = false; controls.touches.ONE = THREE.TOUCH.ROTATE; restGhost(); }, 0);
 });
+// iOS Safari: 화면 전체가 확대되는 제스처 대신 장면이 받게
+for (const t of ['gesturestart', 'gesturechange', 'gestureend']) renderer.domElement.addEventListener(t, e => e.preventDefault());
+renderer.domElement.style.touchAction = 'none';
 renderer.domElement.addEventListener('pointermove', ev => {
-  if (ev.pointerType === 'touch' && multi) return;
+  if (ev.pointerType === 'touch' && (multi || !fingerPiece)) return; // 손가락으로 돌려 보는 중에는 상자를 건드리지 않는다
   const active = !S.testing && !S.dirty && (S.stage === 3 ? !S.pick : !!held());
   const p = active ? planAt(ev) : null;
   ghost.visible = !!p;
   if (p) { setGhost(p.size, S.stage === 3 ? null : held()); ghost.position.set(p.x + sim.gx, p.y, p.z + sim.gz); ghostMat.color.set(0xb8923a); ghostMat.opacity = 0.45; }
 });
-renderer.domElement.addEventListener('pointerleave', () => { ghost.visible = false; });
+renderer.domElement.addEventListener('pointerleave', ev => { if (ev.pointerType !== 'touch') ghost.visible = false; });
 const placing = () => !S.testing && !S.dirty && (S.stage === 3 ? !S.pick : !!held());
-// 시점: 부재를 들고 있으면 왼쪽 드래그/한 손가락 = 부재 옮기기. 들고 있지 않으면 왼쪽 드래그 = 지도(시점 중심) 옮기기.
-// 오른쪽 드래그 = 돌려 보기, 휠 = 확대. 손가락: 한 손가락 = 돌려 보기(놓는 중엔 부재), 두 손가락 = 옮기기 + 벌려 확대.
+// 마우스: 부재를 들고 있으면 왼쪽 드래그 = 부재 옮기기, 아니면 왼쪽 드래그 = 지도(시점 중심) 옮기기. 오른쪽 드래그 = 돌려 보기, 휠 = 확대.
+// 손가락: 한 손가락 = 돌려 보기(금빛 상자 위에서 시작하면 부재 옮기기, 위 pointerdown에서 정함), 두 손가락 = 옮기기 + 벌려 확대.
 function syncControls() {
   const on = placing();
   controls.mouseButtons.LEFT = on ? null : THREE.MOUSE.PAN; controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE; controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
-  controls.touches.ONE = on ? null : THREE.TOUCH.ROTATE; controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+  if (!touches.size) controls.touches.ONE = THREE.TOUCH.ROTATE; controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 }
 controls.screenSpacePanning = false; // 땅과 나란히 옮긴다
 // 탑이 화면 밖으로 완전히 나가지 않게: 시점 중심을 탑 둘레(카메라 거리의 32%, 최소 4·최대 12) 안으로 묶고 높이도 제한한다
@@ -600,8 +627,10 @@ renderer.domElement.addEventListener('pointerdown', ev => { downAt = ev.button =
 renderer.domElement.addEventListener('pointerup', ev => {
   if (S.testing || !downAt || ev.button !== 0 || (ev.pointerType === 'touch' && multi)) { downAt = null; return; }
   const moved = Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 6; downAt = null;
+  const finger = ev.pointerType === 'touch', piece = fingerPiece;
   if (moved && !placing()) return;
-  if (S.dirty) { rebuild(); render(); banner('탑을 다시 세웠습니다', '#fff'); return; }
+  if (S.dirty) { if (!moved) { rebuild(); render(); banner('탑을 다시 세웠습니다', '#fff'); } return; }
+  if (finger && !piece && !(S.stage === 3 && !moved)) return; // 손가락으로 돌려 보기만 했다(부재를 잡지 않음)
   if (S.stage === 3 && S.pick) return pickUp(ev);
   const p = planAt(ev); if (!p) return;
   commitDrop(p);
@@ -855,8 +884,9 @@ const localBest = (st, dis = S.disaster) => st === 1 ? Math.max(0, ...Object.ent
 function render() {
   if (S.stage !== 3) { const A = asm(); if (S.stage === 1) S.tut.done = A.placed.length >= A.plan.length ? TUT.length - 1 : A.plan[A.placed.length].step; }
   const it = held();
-  $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : it ? `${it.name}을(를) 끌어 제자리에서 떼면 놓입니다 · 오른쪽 드래그: 돌려 보기 · R: 처음부터` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · T: 돌리기 · 오른쪽 드래그: 돌려 보기') : '왼쪽 드래그: 지도 옮기기 · 오른쪽 드래그: 돌려 보기 · 휠: 확대 · R: 처음부터';
-  showTarget(); syncControls();
+  const TOUCH_HINT = '한 손가락: 돌려 보기 · 두 손가락: 옮기기 · 확대';
+  $('#hint').textContent = S.dirty ? '화면을 누르면 탑을 다시 세웁니다' : isTouchUI() ? (it ? `${it.name}: 금빛 상자를 끌어 제자리에 놓기 · ${TOUCH_HINT}` : TOUCH_HINT) : it ? `${it.name}을(를) 끌어 제자리에서 떼면 놓입니다 · 오른쪽 드래그: 돌려 보기 · R: 처음부터` : S.stage === 3 ? (S.pick ? '옮길 부재를 누르세요' : '끌어서 위치를 맞추고 떼면 놓입니다 · T: 돌리기 · 오른쪽 드래그: 돌려 보기') : '왼쪽 드래그: 지도 옮기기 · 오른쪽 드래그: 돌려 보기 · 휠: 확대 · R: 처음부터';
+  showTarget(); syncControls(); restGhost();
   { const can = !S.testing && (S.stage === 3 ? S.design.length > 0 : asm().placed.length > 0); const q = $("#quickUndo"); q.disabled = !can; q.hidden = S.stage !== 3 && !asm().placed.length && !S.testing; }
   syncHeader();
   panel.innerHTML = panelHTML();
@@ -1226,6 +1256,6 @@ try {
   if (!KIOSK && !guideSeen() && new URLSearchParams(location.search).get('guide') !== '0') {
     const wait = setInterval(() => { if (!leafletOpen() && !sheetKind) { clearInterval(wait); setTimeout(() => startGuide(), 400); } }, 300);
   }
-  window.__game = { S, sim, asm, autoPlace, placePiece, rebuild, startTest, render, FPS, PERF, setPerf, renderer, scene, camera, controls, resetStage, WX, proj: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
+  window.__game = { S, sim, asm, autoPlace, placePiece, rebuild, startTest, render, ghost, FPS, PERF, setPerf, renderer, scene, camera, controls, resetStage, WX, proj: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; } };
 } catch (err) { console.error(err); $('#err').style.display = 'grid'; }
 setTimeout(() => syncVillage(true), 0); // 시작할 때 마을을 세운다

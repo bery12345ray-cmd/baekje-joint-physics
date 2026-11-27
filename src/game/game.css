@@ -791,3 +791,6 @@ body{font-family:var(--B);font-weight:400;letter-spacing:-.01em;font-feature-set
 @media(max-width:860px){.asm-dock{grid-template-columns:minmax(0,1fr);padding:14px 16px}.asm-dock .row{grid-column:1;grid-row:auto;justify-self:start}}
 @media(prefers-reduced-motion:reduce){.swap-in{animation:none}}
 @media(max-width:860px){#hdr-r .hd-nick{display:flex;align-items:center;text-align:left}}
+/* 손가락 기기: 조작 안내를 보이고(좁은 화면은 놀이 화면 오른쪽 위), R 대신 "처음부터" 단추 */
+body.touch #resetBtn kbd,body.touch #quickUndo kbd{display:none}
+@media(max-width:860px){body.touch #hint{display:block;position:absolute;top:10px;right:10px;left:auto;bottom:auto;width:auto;max-width:min(58%,300px);font-size:12px;padding:6px 10px}}

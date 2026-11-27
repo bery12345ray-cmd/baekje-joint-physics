@@ -3,8 +3,8 @@
 const KEY = 'baekje-guide-done';
 const STEPS = [
   { sel: '#tabs', t: '에헴! 나는 백제의 대목장이오. 못 하나 안 박고 탑을 세우는 사람이지. 먼저 위에서 쌓을 탑, 곧 "마당"을 고르시오. 정림사지 오층석탑부터 하면 좋소.' },
-  { sel: '#stage', t: '탑 둘레를 살펴보시오. 마우스 왼쪽으로 끌면 땅이 통째로 옮겨지고, 오른쪽으로 끌면 빙 돌아보오. 휠은 가까이·멀리. 휴대폰은 두 손가락으로 옮기고 벌려 확대하오.' },
-  { sel: '#next', alt: '#panel .asm', t: '이 판에 지금 들고 있는 부재가 보이오. 화면에서 끌어 제자리다 싶은 곳에 놓으시오. 안내선은 없소, 눈대중이 곧 장인의 실력이니! 잘못 놓으면 Ctrl+Z, 처음부터는 R 키.' },
+  { sel: '#stage', tt: '탑 둘레를 살펴보시오. 한 손가락으로 끌면 빙 돌아보고, 두 손가락으로 끌면 땅이 옮겨지며, 두 손가락을 벌리면 가까이 보이오.', t: '탑 둘레를 살펴보시오. 마우스 왼쪽으로 끌면 땅이 통째로 옮겨지고, 오른쪽으로 끌면 빙 돌아보오. 휠은 가까이·멀리. 휴대폰은 두 손가락으로 옮기고 벌려 확대하오.' },
+  { sel: '#next', alt: '#dock', tt: '이 판에 지금 들고 있는 부재가 보이오. 탑 옆에 뜬 금빛 상자를 손가락으로 끌어 제자리다 싶은 곳에서 떼시오. 안내선은 없소, 눈대중이 곧 장인의 실력이니! 잘못 놓으면 되돌리기, 처음부터는 "처음부터" 단추.', t: '이 판에 지금 들고 있는 부재가 보이오. 화면에서 끌어 제자리다 싶은 곳에 놓으시오. 안내선은 없소, 눈대중이 곧 장인의 실력이니! 잘못 놓으면 Ctrl+Z, 처음부터는 R 키.' },
   { sel: '#dock', t: '쌓는 동안 이 자리에 놓은 부재 수와 들고 있는 부재 이야기가 보이오. 부재를 모두 놓으면 여기가 재해 고르기로 바뀌니, 재해를 고르시오. 지진·강풍·폭풍우·홍수·폭설, 모두 삼국사기에 남은 백제의 재해요. 세기가 1.00에서 7.00까지 30초 동안 0.01씩 오르니, 손에 땀 좀 날 게요.' },
   { sel: '#board', alt: '#dock', t: '탑이 무너지기 시작한 순간의 세기가 점수요. 7.00까지 버티면 만점! 닉네임을 정하면 온라인 순위에 오르오. 이 안내는 위의 ? 단추로 언제든 다시 볼 수 있소. 자, 쌓아 봅시다!' },
 ];
@@ -47,7 +47,8 @@ function place() {
 }
 function show() {
   const s = STEPS[i];
-  el.querySelector('.g-text').textContent = s.t;
+  const touch = document.body.classList.contains('touch') || matchMedia('(pointer: coarse)').matches;
+  el.querySelector('.g-text').textContent = touch && s.tt ? s.tt : s.t; // 손가락 기기는 손가락 조작으로 안내
   el.querySelector('.g-step').textContent = `${i + 1} / ${STEPS.length}`;
   const nx = el.querySelector('[data-g=next]'); nx.textContent = i === STEPS.length - 1 ? '시작하기' : '다음';
   el.querySelector('.g-card').classList.remove('pop'); void el.offsetWidth; el.querySelector('.g-card').classList.add('pop');
