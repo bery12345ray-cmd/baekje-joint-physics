@@ -60,6 +60,11 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 - `npm run dev` — 개발 서버
 - `npm run build` — 타입 검사 + 프로덕션 빌드
 
+## 배포 (팀원 공유)
+
+- 공개 주소: https://bery12345ray-cmd.github.io/baekje-joint-physics/ (GitHub Pages, `gh-pages` 브랜치). 소스는 같은 저장소 `main`.
+- 다시 배포: `npm run build` → `dist`에서 `git init -b gh-pages`, 커밋, `git push -f https://bery12345ray-cmd@github.com/bery12345ray-cmd/baekje-joint-physics.git gh-pages`. 빌드는 `base: ./`라 하위 주소에서도 열린다. 배포본에는 API 키가 없어 대목장 비평은 규칙 기반.
+
 ## 진단 검증 · 학습 기록 · 저사양/키오스크
 
 - 지진 시험이 끝나면 `evidence()`가 진단 근거(응력 초과·부러진 부재, 무게중심 이탈 각도/밑동 반폭 대비 %, 자중 초과, 최대 버틴 지진 세기)를, `diagnose()`가 규칙 진단 범주를 만든다. AI 응답은 `validateAI()`로 범주가 모순되지 않고 로그 숫자를 인용했는지 확인한 뒤에만 쓰고, 실패·30초 초과·모순이면 규칙 기반 비평을 보인다.
