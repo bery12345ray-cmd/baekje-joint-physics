@@ -139,7 +139,7 @@ const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
 camera.position.set(12, 8.5, 14);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 3.2, 0); controls.enableDamping = true; controls.maxPolarAngle = 1.52;
-controls.minDistance = 5; controls.maxDistance = 42;
+controls.minDistance = 5; controls.maxDistance = 48;
 scene.add(new THREE.HemisphereLight(0xe3ecee, 0x8a7c68, 1.1));
 const sun = new THREE.DirectionalLight(0xfff1dc, 2.4);
 sun.position.set(9, 16, 7); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
@@ -706,7 +706,7 @@ function panelHTML() {
       + spirit('검이불루 화이불치', '검소하되 누추하지 않고, 화려하되 사치스럽지 않다. 덜어낼수록 무게중심이 내려앉습니다.')
       + spirit('나무의 집을 돌로 옮긴 탑', '정림사지 오층석탑은 목조건축 양식을 돌로 옮겨 지었습니다. 모서리 기둥(우주)은 배흘림 나무 기둥을, 옥개받침은 처마를 받치는 공포를, 얇고 넓으며 끝이 살짝 들린 옥개석은 기와지붕을 닮았습니다.')
       + asmBox(`<button class="btn pat" data-act="autoall" ${dis()}>남은 부재 자동으로</button>`) + lessonHTML()
-      + `<h3>정림사지 둘러보기</h3>${seg([['baekje', '백제 때 정림사<br><small>중문·금당·강당·회랑</small>'], ['today', '오늘날 정림사지<br><small>터·보호각·박물관</small>']], 'era', S.era || 'baekje')}<p class="note">${(S.era || 'baekje') === 'today' ? '오늘날 금당과 회랑은 터만 남았고, 강당 자리에 고려 때 석조여래좌상을 모신 보호각(1993)이 있습니다. 가까이에 정림사지박물관(2006 개관)이 있습니다.' : '남쪽에서 북쪽으로 중문·오층석탑·금당·강당이 한 줄로 서고, 둘레를 회랑이 감쌌습니다(북쪽이 더 넓은 사다리꼴). 중문 앞에는 연못 두 개가 있었습니다.'}</p>`
+      + `<h3>정림사지 둘러보기</h3>${seg([['baekje', '백제 때 정림사<br><small>중문·금당·강당·회랑</small>'], ['today', '오늘날 정림사지<br><small>터·보호각·박물관</small>'], ['future', '미래 복원<br><small>다시 세울 가람</small>']], 'era', S.era || 'baekje')}<p class="note">${(S.era || 'baekje') === 'future' ? '정림사지박물관이 내놓은 복원 계획을 참고해, 오늘의 절터 위에 중문·회랑·2층(중층) 금당·강당·승방을 다시 세워 보았습니다. 건물 모양과 배치는 계획안 그림을 바탕으로 한 게임 속 재현이며, 실제 복원 설계와 다를 수 있습니다. (참고: 정림사지박물관 누리집 「정림사지 복원 계획」)' : (S.era || 'baekje') === 'today' ? '오늘날 금당과 회랑은 터만 남았고, 강당 자리에 고려 때 석조여래좌상을 모신 보호각(1993)이 있습니다. 가까이에 정림사지박물관(2006 개관)이 있습니다.' : '남쪽에서 북쪽으로 중문·오층석탑·금당·강당이 한 줄로 서고, 둘레를 회랑이 감쌌습니다(북쪽이 더 넓은 사다리꼴). 중문 앞에는 연못 두 개가 있었습니다.'}</p>`
       + `<h3>어떤 탑을 쌓을까</h3>${seg([['hist', '정림사지 비례<br><small>검이불루</small>'], ['ornate', '화려하게 지은 탑<br><small>화이불치를 어김</small>']], 's2m', s.ornament ? 'ornate' : 'hist')}<p class="note">${s.ornament ? '몸돌을 높이고 지붕돌을 넓히고 장식석까지 얹은 탑입니다. 같은 지진에서 정림사지 비례와 견주어 보세요.' : '실제 정림사지 오층석탑의 비례 그대로입니다.'}</p>`
       + disasterHTML()
       + `<div class="row"><button class="btn line" data-act="heritage" aria-haspopup="dialog">국가유산 안내</button><button class="btn line" data-act="gojeung" aria-haspopup="dialog">고증 노트</button></div>`
@@ -793,7 +793,7 @@ ui.addEventListener('click', e => {
   if (d.kind) { S.tut.kind = d.kind; S.last = null; resetAsm(1); rebuild(); }
   if (d.kind2) { S.s2.kind = d.kind2; S.last = null; resetAsm(2); rebuild(); }
   if (d.s2m) { Object.assign(S.s2, HIST, d.s2m === 'ornate' ? ORNATE : {}); S.last = null; resetAsm(2); rebuild(); }
-  if (d.era) { S.era = d.era; syncVillage(); }
+  if (d.era) { S.era = d.era; syncVillage(); if (d.era === 'future') { camera.position.set(25, 25, 22); controls.target.set(2, 0, -4); controls.update(); } }
   if (d.preset) { S.s2.preset = d.preset; S.last = null; resetAsm(2); rebuild(); }
   if (d.ex) { S.design = EXAMPLES[d.ex].design(); S.example = d.ex; S.last = null; rebuild(); banner(`${EXAMPLES[d.ex].name}을(를) 불러왔습니다`, '#fff'); }
   if (d.mat) S.sel.mat = d.mat;

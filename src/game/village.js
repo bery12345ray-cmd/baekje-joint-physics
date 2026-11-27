@@ -74,6 +74,28 @@ function corridor(len, { h = 1.7 } = {}) {
   return g;
 }
 
+// 중층(2층) 금당: 아래 법당 위에 한 칸 작은 위층과 지붕을 한 번 더 얹는다
+function twoStoryHall(w, d, h) {
+  const g = hall(w, d, h, { bays: 5, plinth: 0.8 });
+  const up = hall(w * 0.62, d * 0.62, h * 0.7, { bays: 3, plinth: 0.01 }); up.position.y = 0.8 + h + 0.2 + Math.min(w, d) * 0.42 * 0.45; g.add(up);
+  return g;
+}
+// 땅속에서 하나씩 솟아오르게(미래 복원): 순서대로 늦춰서 올린다
+function riseUp(items) {
+  if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const t0 = performance.now();
+  for (const it of items) { it.y0 = it.obj.position.y; it.obj.position.y = it.y0 - 7; }
+  const tick = now => {
+    let busy = false;
+    items.forEach((it, i) => {
+      const k = Math.min(1, Math.max(0, (now - t0 - i * 140) / 900)); if (k < 1) busy = true;
+      it.obj.position.y = it.y0 - 7 * Math.pow(1 - k, 3);
+    });
+    if (busy) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 // 각 건물은 items에 { obj, kind } 로 담는다(재해 때 무너지거나 탈 것들)
 export function buildVillage(mode, stage) {
   const root = new THREE.Group(), items = [];
@@ -88,6 +110,25 @@ export function buildVillage(mode, stage) {
       put(corridor(23), -9.6, -4, Math.PI / 2 - 0.06);                            // 서쪽 회랑(북쪽이 넓어짐)
       put(corridor(23), 9.6, -4, -Math.PI / 2 + 0.06);                            // 동쪽 회랑
       put(pond(4.5, 2.8), -4.2, 11.2, 0, 'stone'); put(pond(4.5, 2.8), 4.2, 11.2, 0, 'stone'); // 연지
+    } else if (mode === 'future') {
+      // 미래 복원(정림사지박물관 복원 계획 참고): 오늘의 잔디 절터 위에 중문·회랑·중층 금당·강당·승방을 다시 세운다
+      root.add(box(34, 0.04, 40, VMAT.lawn, 0, 0.02, -3, false));
+      root.add(box(14, 0.05, 6, VMAT.plinth, 0, 0.03, 14.5, false));                              // 중문 앞 마당(포장)
+      const order = [];
+      const P = (...a) => { const o = put(...a); order.push(items[items.length - 1]); return o; };
+      P(pond(4.5, 2.8), -4.2, 11.2, 0, 'stone'); P(pond(4.5, 2.8), 4.2, 11.2, 0, 'stone');
+      P(hall(3.6, 2.4, 2.0, { bays: 3, plinth: 0.45 }), 0, 7.2);                                 // 중문
+      P(corridor(7.5), -5.2, 7.2); P(corridor(7.5), 5.2, 7.2);                                   // 남회랑
+      P(corridor(23), -9.6, -4, Math.PI / 2 - 0.06); P(corridor(23), 9.6, -4, -Math.PI / 2 + 0.06); // 동·서 회랑
+      P(twoStoryHall(7.5, 5.2, 2.4), 0, -7.5);                                                   // 중층 금당
+      P(hall(11.5, 5.2, 2.6, { bays: 7, plinth: 0.6 }), 0, -15.2);                               // 강당
+      P(corridor(3.6), -7.9, -15.6); P(corridor(3.6), 7.9, -15.6);                               // 강당과 회랑을 잇는 북회랑
+      P(hall(3.2, 9, 2.0, { bays: 3, plinth: 0.4 }), -14.2, -14.5); P(hall(3.2, 9, 2.0, { bays: 3, plinth: 0.4 }), 14.2, -14.5); // 승방(동·서)
+      const mu = new THREE.Group(); mu.add(box(9, 3, 6, VMAT.modern, 0, 1.5, 0)); mu.add(box(9.6, 0.3, 6.6, VMAT.stone, 0, 3.15, 0)); mu.add(box(4, 1.8, 0.1, VMAT.glass, 0, 1.1, 3.02, false));
+      put(mu, 19, -1, -Math.PI / 2, 'modern');                                                    // 정림사지박물관(지금 있음)
+      for (const [x, z] of [[-14, 5], [-17, -4], [14.5, 8], [-12, 15], [12, 16]]) put(tree(0.9), x, z, 0, 'tree');
+      riseUp(order);
+      return { root, items, labels: [['중문', 0, 4.2, 7.2], ['중층 금당', 0, 8.6, -7.5], ['강당', 0, 6.2, -15.2], ['승방', 14.2, 4.6, -14.5], ['회랑', -9.6, 3.4, -2], ['정림사지박물관', 19, 4.4, -1]] };
     } else {
       // 오늘날 정림사지: 잔디, 금당·회랑은 터(기단과 초석)만, 강당 자리에 석조여래좌상 보호각(1993), 정림사지박물관(2006)
       root.add(box(22, 0.04, 26, VMAT.lawn, 0, 0.02, -3, false));
