@@ -70,7 +70,7 @@ function modelPart(part, [w, h, d], M, { ink, tone }) {
   const src = MODELS[part], inner = src.clone(true), G = new THREE.Group();
   const box = new THREE.Box3().setFromObject(inner), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
   const stone = (tone && M['granite_' + tone]) || M.granite;
-  const pick = n => { n = (n || '').toLowerCase(); return n.startsWith('stone') ? stone : n.startsWith('wood') ? M.pine : n.startsWith('red') ? M.dan : n.startsWith('plaster') ? M.plaster : n.startsWith('green') ? M.green : n.startsWith('gold') ? (M.gold || M.goldPaint) : n.startsWith('tile') ? (M.giwa || M.tile) : null; };
+  const pick = n => { n = (n || '').toLowerCase(); return n.startsWith('stone_dark') ? (M.granite_dark || stone) : n.startsWith('stone') ? stone : n.startsWith('wood') ? M.pine : n.startsWith('red') ? M.dan : n.startsWith('plaster') ? M.plaster : n.startsWith('green') ? M.green : n.startsWith('gold') ? (M.gold || M.goldPaint) : n.startsWith('tile') ? (M.giwa || M.tile) : null; };
   inner.traverse(o => { if (!o.isMesh) return; const m = pick(o.material && o.material.name); if (m) o.material = m; o.castShadow = o.receiveShadow = true;
     if (ink) o.add(new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 32), INK)); });
   inner.position.set(-c.x, -c.y, -c.z);

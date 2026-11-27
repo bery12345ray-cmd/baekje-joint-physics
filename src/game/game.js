@@ -185,6 +185,7 @@ const MATS = {
   giwa: new THREE.MeshStandardMaterial({ map: TEX.tile, color: 0x8f8a80, roughness: 0.75 }), // 먹빛 기와
   granite_warm: new THREE.MeshStandardMaterial({ map: TEX.granite, color: 0xe2d3b8, roughness: 0.95 }), // 세월에 바랜 갈색 돌(무량사)
   granite_pink: new THREE.MeshStandardMaterial({ map: TEX.granite, color: 0xf0cdbb, roughness: 0.92 }), // 담홍색 화강암(계룡산 남매탑)
+  granite_dark: new THREE.MeshStandardMaterial({ map: TEX.granite, color: 0xc4bfb3, roughness: 0.95 }), // 블렌더 부재의 우주·탱주(한 단계 어두운 돌)
   hidden: new THREE.MeshBasicMaterial({ visible: false }),                                    // 충돌 상자(보이지 않음)
 };
 TEX.ground.repeat.set(9, 9);
