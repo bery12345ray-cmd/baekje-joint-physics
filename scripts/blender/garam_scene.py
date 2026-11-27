@@ -398,49 +398,68 @@ def export_asset(name, outdir):
     bpy.ops.export_scene.gltf(filepath=os.path.join(outdir, name + '.glb'), export_format='GLB', use_selection=True, export_apply=True, export_yup=True, export_materials='EXPORT')
     print('exported', name)
 
-def house_thatch():  # 초가집: 돌 기단 + 흙벽 + 나무 문 + 둥근 초가지붕
-    box(3.6, 3.0, 0.3, (0, 0, 0.15), M['plinth'], 0.04)
-    box(2.8, 2.2, 1.4, (0, 0, 0.3 + 0.7), M['mud'], 0.03)
-    for x in (-1.4, 1.4):
-        for y in (-1.1, 1.1): cyl(0.09, 1.4, (x, y, 1.0), M['bark'], 8)
-    box(0.6, 0.06, 1.0, (0, -1.13, 0.8), M['bark'])
-    box(0.5, 0.05, 0.4, (0.9, -1.13, 1.2), M['bark'])
-    r = hip_roof(4.0, 3.4, 1.35, (0, 0, 1.7), M['straw'], lift=0.04, eave=0.18, n=14)
-    md = r.modifiers.new('s', 'SUBSURF'); md.levels = 1
+# 건물 모양은 village_v2.py(이중 기단·공포·단청·창살문·팔작 기와지붕·소나무 등). 실행:
+#   $env:SCENE='village'; [$env:PREVIEW='<미리보기 PNG 폴더(절대 경로)>']; blender -b --factory-startup -P scripts/blender/garam_scene.py -- public/models <절대 경로>\public\leaflet [v_hall5 ...]
+def export_v2(name, outdir):
+    for o in bpy.data.objects: o.select_set(o.type == 'MESH')
+    os.makedirs(outdir, exist_ok=True)
+    kw = dict(filepath=os.path.join(outdir, name + '.glb'), export_format='GLB', use_selection=True, export_apply=True, export_yup=True, export_materials='EXPORT')
+    kw.update(export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=7, export_draco_position_quantization=14, export_draco_normal_quantization=8)
+    try: bpy.ops.export_scene.gltf(**kw, export_texcoord=False)
+    except TypeError: bpy.ops.export_scene.gltf(**kw)
+    st = {o.data.materials[0].name: (len(o.data.vertices), sum(len(p.vertices) - 2 for p in o.data.polygons)) for o in bpy.data.objects if o.type == 'MESH'}
+    print('exported', name, os.path.getsize(kw['filepath']), st)
 
-def house_tile():  # 기와집: 높은 기단 + 붉은 기둥 + 흰 벽 + 기와지붕
-    hall(0, 0, 3.0, 2.2, 1.5, bays=3, plinth=0.35)
-
-def corridor_unit():  # 회랑 한 칸(길이 6): 기단 + 붉은 기둥 두 줄 + 뒷벽 + 긴 기와지붕
-    L = 6.0
-    box(L, 1.8, 0.3, (0, 0, 0.15), M['plinth'], 0.03)
-    for k in range(5):
-        x = -L / 2 + 0.6 + k * (L - 1.2) / 4
-        for y in (-0.6, 0.6): cyl(0.09, 1.7, (x, y, 0.3 + 0.85), M['red'], 10)
-    box(L, 0.12, 1.7, (0, 0.62, 1.15), M['plaster'])
-    box(L, 0.16, 0.16, (0, -0.6, 2.0), M['green']); box(L, 0.16, 0.16, (0, 0.6, 2.0), M['green'])
-    hip_roof(L + 0.6, 2.6, 0.9, (0, 0, 2.06), M['giwa'], lift=0.12, eave=0.08)
-
-def two_story():  # 중층 금당: 아래 법당 위에 한 칸 작은 위층
-    hall(0, 0, 7.5, 5.2, 2.4, bays=5, plinth=0.8)
-    hall(0, 0, 4.6, 3.2, 1.6, bays=3, plinth=0.01, roofH=1.4)
-    for o in bpy.data.objects:
-        pass
+# 미리보기: 내보낸 glb를 다시 불러 게임 색(VMAT)으로 칠하고 나란히 렌더
+VMAT_HEX = {'plinth': 0xa9a599, 'granite': 0xbdb9ad, 'plaster': 0xefe8d6, 'red': 0xa8452c, 'green': 0x3f7d6e, 'giwa': 0x5a5750,
+            'giwa_row': 0x4f4c46, 'bark': 0x8a6a44, 'pinebark': 0xa0603c, 'leaf': 0x5f7d55, 'straw': 0xc2ab78, 'mud': 0xa88f6a, 'paper': 0xf1ead6,
+            'gold': 0xd9b45a, 'glass': 0x6f7f86, 'modern': 0xd8d2c4, 'iron': 0x3a352e}
+def preview(outdir, png):
+    clear_objs()
+    lin = lambda c: (c / 255) ** 2.2
+    pm = {}
+    for k, h in VMAT_HEX.items():
+        m = bpy.data.materials.new('pv_' + k); m.use_nodes = True; b = m.node_tree.nodes['Principled BSDF']
+        b.inputs['Base Color'].default_value = (lin(h >> 16 & 255), lin(h >> 8 & 255), lin(h & 255), 1); b.inputs['Roughness'].default_value = 0.85
+        pm[k] = m
+    lay = [('v_hall7', -15, 12), ('v_hall2', -1, 12), ('v_hall5', 10, 12), ('v_shelter', 21, 12),
+           ('v_gate', -17, 0), ('v_sbang', -7, 0), ('v_tile', 2.5, 0), ('v_house', 8, 0), ('v_museum', 16, 0), ('v_tree', 24, 0)]
+    for n, x, y in lay + [('v_corridor', -6 + 3 * k, -7) for k in range(4)]:
+        before = set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=os.path.join(outdir, n + '.glb'))
+        for o in set(bpy.data.objects) - before:
+            o.location.x += x; o.location.y += y
+            for sl in o.material_slots:
+                key = sl.material.name.split('.')[0] if sl.material else ''
+                if key in pm: sl.material = pm[key]
+    box(600, 600, 0.1, (3, 3, -0.05), M['lawn'])
+    sky(sun_el=40, sun_rot=140, strength=0.14)
+    sc = C.scene
+    shots = [('village-preview', (4, -46, 30), (3, 4, 1.5), 32), ('village-preview-hall', (4, -1, 3.2), (10, 12, 3.6), 30),
+             ('village-preview-small', (6, -9, 3.4), (5, 0, 1.2), 30), ('village-preview-right', (12, -10, 3.6), (18, 0, 2.0), 30)]
+    for nm, loc, tgt, lens in shots:
+        cam = bpy.data.cameras.new(nm); cam.lens = lens
+        co = link(bpy.data.objects.new(nm, cam)); co.location = loc
+        co.rotation_euler = (Vector(tgt) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
+        sc.camera = co; sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = int(os.environ.get('SAMPLES', 32))
+        try: sc.cycles.use_denoising = True
+        except Exception: pass
+        sc.view_settings.view_transform = 'AgX'; sc.view_settings.exposure = float(os.environ.get('EXPO', -0.6))
+        sc.render.resolution_x, sc.render.resolution_y = 1800, 1000
+        sc.render.image_settings.file_format = 'PNG'
+        sc.render.filepath = os.path.join(os.path.abspath(png), nm + '.png')
+        bpy.ops.render.render(write_still=True); print('rendered', sc.render.filepath)
 
 if os.environ.get('SCENE') == 'village':
     outdir = os.path.join(os.path.abspath(src), 'village')
-    M['mud'] = mat('mud', (0.62, 0.52, 0.38), 0.95, 0.25, 6, 0.3)
-    M['straw'] = mat('straw', (0.70, 0.58, 0.34), 1.0, 0.4, 20, 0.6)
-    for name, fn in [('v_house', house_thatch), ('v_tile', house_tile), ('v_gate', lambda: hall(0, 0, 3.4, 2.4, 1.9, bays=3, plinth=0.4)),
-                     ('v_hall5', lambda: hall(0, 0, 7.5, 5.2, 2.6, bays=5, plinth=0.7)), ('v_hall7', lambda: hall(0, 0, 11.5, 5.2, 2.6, bays=7, plinth=0.6)),
-                     ('v_corridor', corridor_unit), ('v_tree', lambda: tree(0, 0, 1.0)), ('v_museum', lambda: museum(0, 0))]:
-        clear_objs(); fn(); export_asset(name, outdir)
-    # 중층 금당: 위층을 아래 지붕 위로 올린다
-    clear_objs(); hall(0, 0, 7.5, 5.2, 2.4, bays=5, plinth=0.8)
-    before = set(bpy.data.objects); hall(0, 0, 4.6, 3.2, 1.6, bays=3, plinth=0.01, roofH=1.4)
-    for o in set(bpy.data.objects) - before: o.location.z += 0.8 + 2.4 + 0.12 + 1.6
-    export_asset('v_hall2', outdir)
-    with open(os.path.join(outdir, 'manifest.json'), 'w') as f: json.dump(['v_house', 'v_tile', 'v_gate', 'v_hall5', 'v_hall7', 'v_corridor', 'v_tree', 'v_museum', 'v_hall2'], f)
+    _here = os.path.dirname(os.path.abspath(sys.argv[sys.argv.index('-P') + 1]))
+    exec(open(os.path.join(_here, 'village_v2.py'), encoding='utf-8').read())
+    for name, fn in ASSETS:
+        if only and name not in only: continue
+        clear_objs(); fn(); export_v2(name, outdir)
+    if not only:
+        with open(os.path.join(outdir, 'manifest.json'), 'w') as f: json.dump([n for n, _ in ASSETS], f)
+    if os.environ.get('PREVIEW'): preview(outdir, os.environ['PREVIEW'])
     sys.exit(0)
 
 if os.environ.get('SCENE') == 'mireuk':

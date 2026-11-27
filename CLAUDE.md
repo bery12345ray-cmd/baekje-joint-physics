@@ -103,7 +103,7 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 - `sim.js` `WORLD`: 피사의 사탑·대안탑·빅벤·도쿄타워·에펠탑·N서울타워를 실제 크기(1단위 = 1.37m)로 `steel` 이음 스택. 셋째 마당 예시로 불러오면 `sim.breakAt`(1.5~4.5) 세기에 이르러 `collapseNow()`로 쓰러진다(게임 설정). 정림사지·미륵사지 예시는 `sim.armor`로 무너지지 않는다.
 - 돌 깨짐: 무너진 뒤 큰 충격을 받은 돌·벽돌은 `shatter()`로 조각(MATS.chip)나고 `dust()` 돌먼지가 핀다.
 - 대화창(`towerchat.js`): 셋째 마당 "말로 탑 만들기". `/api/build`(server/build.ts, .env.local ANTHROPIC_API_KEY 필요, 개발 서버에서만) → 실패하면 내장 생성기(곰돌이·피라미드·눈사람·로켓·하트·성·N층 탑·탑 이름).
-- 마을 건물: `garam_scene.py`를 `SCENE=village`로 돌리면 `public/models/village/*.glb`. `village.js` `swap()`이 코드 건물의 크기에 맞춰 바꿔 끼운다(재료는 VMAT).
+- 마을 건물: `garam_scene.py`를 `SCENE=village`로 돌리면 `scripts/blender/village_v2.py`의 건물(이중 기단·주심포·단청·창살문·팔작 기와지붕·치미, 초가, 소나무, 박물관, 3m 회랑 단위, 보호각 v_shelter, 승방 v_sbang)을 `public/models/village/*.glb`로 내보낸다(Draco 압축, 재료마다 메시 하나). `PREVIEW=<절대 경로>`를 주면 나란히 놓은 미리보기 PNG도 렌더. `village.js` `swap()`이 코드 건물 크기에 맞춰 바꿔 끼운다(재료는 VMAT, `giwa_row`·leaf·paper는 먹선 없음, 회랑은 `tile`로 이어 붙임, 나무·박물관은 비례 유지 `fit`). Draco 디코더는 `public/draco/`(three `examples/jsm/libs/draco/gltf`에서 복사).
 - 리플렛: 첫째 마당 시작 때 미륵사지, 둘째 마당 들어갈 때 정림사지(한 번씩), 판의 "리플렛" 버튼으로 다시. 관람 안내 면은 없앴다.
 
 ## 마당 순서 (2026-11-27 예진)

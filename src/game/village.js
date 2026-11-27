@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { eaveRoof } from './parts.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 const INK = new THREE.LineBasicMaterial({ color: 0x4a463e, transparent: true, opacity: 0.8 });
 const mat = (color, rough = 0.9) => new THREE.MeshStandardMaterial({ color, roughness: rough });
@@ -15,6 +16,7 @@ export const VMAT = {
   giwa: mat(0x5a5750, 0.8), straw: mat(0xc2ab78, 1), green: mat(0x3f7d6e, 0.8), gold: mat(0xd9b45a, 0.6),
   water: new THREE.MeshStandardMaterial({ color: 0x8fa9a6, roughness: 0.25, metalness: 0.1 }), lawn: mat(0x9fb08a, 1), modern: mat(0xd8d2c4, 0.8), glass: mat(0x6f7f86, 0.4),
   leaf: new THREE.MeshStandardMaterial({ color: 0x5f7d55, roughness: 1, flatShading: true }), rubble: mat(0x3a352e, 1), mud: mat(0xa88f6a, 1),
+  paper: mat(0xf1ead6, 0.95), pinebark: mat(0xa0603c, 1),
 };
 VMAT.giwa.side = VMAT.straw.side = THREE.DoubleSide; // 지붕 안쪽 면도 칠해 빈틈이 보이지 않게
 const V0 = Object.fromEntries(Object.entries(VMAT).map(([k, m]) => [k, m.color.clone()]));
@@ -22,25 +24,44 @@ export function resetVillageMats() { for (const [k, c] of Object.entries(V0)) { 
 
 // ---------- 블렌더로 만든 마을 건물(public/models/village/*.glb, scripts/blender/garam_scene.py SCENE=village) ----------
 // 모델이 있으면 코드로 만든 건물과 같은 크기(경계 상자)에 맞춰 바꿔 끼운다. 재료는 VMAT으로 바꿔 불탄 색 바꾸기 등이 그대로 먹게 한다.
+// glb는 Draco로 줄여 두었다(디코더: public/draco/, three/examples/jsm/libs/draco/gltf에서 복사).
 const VM = {};
 export async function loadVillageModels(base = 'models/village/') {
   try {
     const list = await (await fetch(base + 'manifest.json')).json(), L = new GLTFLoader();
-    await Promise.all(list.map(async n => { const g = await L.loadAsync(base + n + '.glb'); VM[n] = g.scene; }));
+    const D = new DRACOLoader(); D.setDecoderPath('draco/'); L.setDRACOLoader(D);
+    await Promise.all(list.map(async n => { const g = await L.loadAsync(base + n + '.glb'); VM[n] = prep(g.scene); }));
+    D.dispose();
   } catch { /* 모델이 없으면 코드 모양 그대로 */ }
   return Object.keys(VM).length;
 }
-const VNAME = { plinth: 'plinth', plaster: 'plaster', red: 'red', green: 'green', giwa: 'giwa', bark: 'wood', leaf: 'leaf', granite: 'stone', granite_dark: 'stone', water: 'water', modern: 'modern', glass: 'glass', iron: 'rubble', mud: 'mud', straw: 'straw' };
-const _b = new THREE.Box3(), _s = new THREE.Vector3(), _c = new THREE.Vector3();
-function swap(name, proc) { // proc: 코드로 만든 건물(크기 기준). 모델이 있으면 그 경계 상자에 맞춘 모델 묶음을 돌려준다
+const VNAME = { plinth: 'plinth', plaster: 'plaster', red: 'red', green: 'green', giwa: 'giwa', giwa_row: 'giwa', bark: 'wood', pinebark: 'pinebark', leaf: 'leaf', granite: 'stone', granite_dark: 'stone',
+  water: 'water', modern: 'modern', glass: 'glass', iron: 'rubble', mud: 'mud', straw: 'straw', paper: 'paper', gold: 'gold' };
+const NOINK = new Set(['giwa_row', 'leaf', 'paper']); // 기와 줄·솔잎·창호지는 먹선을 긋지 않는다(지붕이 어지럽지 않게)
+// 불러온 모델을 한 번만 손질: 재료를 VMAT으로, 먹선(EdgesGeometry)을 미리 만들어 두고 복제본이 같이 쓴다
+function prep(scene) {
+  scene.traverse(o => {
+    if (!o.isMesh) return;
+    const nm = (o.material && o.material.name || '').toLowerCase().split('.')[0], k = VNAME[nm];
+    if (k) o.material = VMAT[k];
+    o.castShadow = o.receiveShadow = true;
+    if (!NOINK.has(nm)) o.add(new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 40), INK));
+  });
+  const b = new THREE.Box3().setFromObject(scene);
+  return { scene, size: b.getSize(new THREE.Vector3()), center: b.getCenter(new THREE.Vector3()), minY: b.min.y };
+}
+const _b = new THREE.Box3();
+// proc: 코드로 만든 건물(크기 기준). 모델이 있으면 그 경계 상자에 맞춘 모델 묶음을 돌려준다.
+// fit: 'xyz'(기본, 세 축 따로) · 'x' 또는 'y'(그 축에 맞춰 고르게, 비례 유지) · tile: 긴 축(x)을 따라 단위 모델을 이어 붙인다(회랑)
+function swap(name, proc, { fit = 'xyz', tile = false } = {}) {
   const src = VM[name]; if (!src) return proc;
   _b.setFromObject(proc); const want = _b.getSize(new THREE.Vector3());
-  const m = src.clone(true);
-  m.traverse(o => { if (!o.isMesh) return; const k = VNAME[(o.material && o.material.name || '').toLowerCase()]; if (k) o.material = VMAT[k]; o.castShadow = o.receiveShadow = true;
-    if (o.material !== VMAT.leaf) o.add(new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 35), INK)); });
-  _b.setFromObject(m); _b.getSize(_s); _b.getCenter(_c);
-  const inner = new THREE.Group(); inner.add(m); m.position.set(-_c.x, -_b.min.y, -_c.z);
-  inner.scale.set(want.x / _s.x, want.y / _s.y, want.z / _s.z);
+  const { size: s, center: c, minY } = src;
+  const n = tile ? Math.max(1, Math.round(want.x / s.x)) : 1;
+  const inner = new THREE.Group();
+  for (let i = 0; i < n; i++) { const m = src.scene.clone(true); m.position.set(-c.x + (i - (n - 1) / 2) * s.x, -minY, -c.z); inner.add(m); }
+  if (fit === 'x' || fit === 'y') { const k = fit === 'x' ? want.x / s.x : want.y / s.y; inner.scale.setScalar(k); }
+  else inner.scale.set(want.x / (n * s.x), want.y / s.y, want.z / s.z);
   const g = new THREE.Group(); g.add(inner); g.userData = proc.userData; if (proc.userData.roof) g.userData.roof = inner;
   return g;
 }
@@ -57,7 +78,7 @@ function roof(w, d, h, m, lift = 0.25) {
   const o = mesh(g, m); o.scale.set(w, w, d); return o;
 }
 // 기와 법당: 돌 기단 + 붉은 기둥 + 흰 벽 + 녹색 창방 + 기와지붕
-function hall(w, d, h, opt = {}) { return swap(opt.bays === 7 ? 'v_hall7' : opt.bays === 3 ? (opt.plinth <= 0.3 ? 'v_tile' : 'v_gate') : 'v_hall5', hallCode(w, d, h, opt)); }
+function hall(w, d, h, opt = {}) { return swap(opt.model || (opt.bays === 7 ? 'v_hall7' : opt.bays === 3 ? (opt.plinth <= 0.3 ? 'v_tile' : 'v_gate') : 'v_hall5'), hallCode(w, d, h, opt)); }
 function hallCode(w, d, h, { bays = 5, plinth = 0.5 } = {}) {
   const g = new THREE.Group();
   g.add(box(w + 0.8, plinth, d + 0.8, VMAT.plinth, 0, plinth / 2, 0));
@@ -80,7 +101,7 @@ function houseCode(w, d, h) {
 function tileHouse(w, d, h) {
   const g = hall(w, d, h, { bays: 3, plinth: 0.3 }); return g;
 }
-function tree(s = 1) { return swap('v_tree', treeCode(s)); }
+function tree(s = 1) { return swap('v_tree', treeCode(s), { fit: 'y' }); } // 소나무는 키에 맞춰 비례 그대로
 function treeCode(s = 1) {
   const g = new THREE.Group();
   g.add(mesh(new THREE.CylinderGeometry(0.12 * s, 0.18 * s, 2.2 * s, 7), VMAT.wood, 0, 1.1 * s, 0, false));
@@ -94,7 +115,7 @@ function pond(w, d) {
   return g;
 }
 // 회랑: 지붕 덮인 긴 복도(기둥 줄 + 기와지붕)
-function corridor(len, opt = {}) { return swap('v_corridor', corridorCode(len, opt)); }
+function corridor(len, opt = {}) { return swap('v_corridor', corridorCode(len, opt), { tile: true }); } // 3m 단위 회랑을 이어 붙인다
 function corridorCode(len, { h = 1.7 } = {}) {
   const g = new THREE.Group();
   g.add(box(len, 0.3, 1.6, VMAT.plinth, 0, 0.15, 0));
@@ -104,6 +125,11 @@ function corridorCode(len, { h = 1.7 } = {}) {
   return g;
 }
 
+// 정림사지박물관(2006): 블렌더 모델(9×6 바닥, 기와 팔작지붕 얹은 가운데 홀)을 너비에 맞춰 비례 그대로
+function museum() {
+  const mu = new THREE.Group(); mu.add(box(9, 3, 6, VMAT.modern, 0, 1.5, 0)); mu.add(box(9.6, 0.3, 6.6, VMAT.stone, 0, 3.15, 0)); mu.add(box(4, 1.8, 0.1, VMAT.glass, 0, 1.1, 3.02, false));
+  return swap('v_museum', mu, { fit: 'x' });
+}
 // 중층(2층) 금당: 아래 법당 위에 한 칸 작은 위층과 지붕을 한 번 더 얹는다
 function twoStoryHall(w, d, h) {
   const g = hallCode(w, d, h, { bays: 5, plinth: 0.8 });
@@ -153,8 +179,8 @@ export function buildVillage(mode, stage) {
       P(twoStoryHall(7.5, 5.2, 2.4), 0, -7.5);                                                   // 중층 금당
       P(hall(11.5, 5.2, 2.6, { bays: 7, plinth: 0.6 }), 0, -15.2);                               // 강당
       P(corridor(3.6), -7.9, -15.6); P(corridor(3.6), 7.9, -15.6);                               // 강당과 회랑을 잇는 북회랑
-      P(hall(3.2, 9, 2.0, { bays: 3, plinth: 0.4 }), -14.2, -14.5); P(hall(3.2, 9, 2.0, { bays: 3, plinth: 0.4 }), 14.2, -14.5); // 승방(동·서)
-      const mu = new THREE.Group(); mu.add(box(9, 3, 6, VMAT.modern, 0, 1.5, 0)); mu.add(box(9.6, 0.3, 6.6, VMAT.stone, 0, 3.15, 0)); mu.add(box(4, 1.8, 0.1, VMAT.glass, 0, 1.1, 3.02, false));
+      P(hall(9, 3.2, 2.0, { bays: 7, plinth: 0.4, model: 'v_sbang' }), -14.2, -14.5, Math.PI / 2); P(hall(9, 3.2, 2.0, { bays: 7, plinth: 0.4, model: 'v_sbang' }), 14.2, -14.5, -Math.PI / 2); // 승방(동·서, 마당 쪽을 본다)
+      const mu = museum();
       put(mu, 19, -1, -Math.PI / 2, 'modern');                                                    // 정림사지박물관(지금 있음)
       for (const [x, z] of [[-14, 5], [-17, -4], [14.5, 8], [-12, 15], [12, 16]]) put(tree(0.9), x, z, 0, 'tree');
       riseUp(order);
@@ -165,10 +191,10 @@ export function buildVillage(mode, stage) {
       put(box(3.6, 0.35, 2.6, VMAT.plinth, 0, 0.18, 7.2), 0, 0, 0, 'stone');                    // 중문 터
       const gd = new THREE.Group(); gd.add(box(8.3, 0.6, 6, VMAT.plinth, 0, 0.3, 0)); for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) gd.add(mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.15, 10), VMAT.stone, -3.4 + i * 1.36, 0.68, -2.2 + j * 1.46, false));
       put(gd, 0, -7.5, 0, 'stone');                                                                // 금당 터와 초석
-      put(hall(9, 5, 3.2, { bays: 5, plinth: 0.6 }), 0, -15.2, 0, 'modern');                       // 석조여래좌상 보호각(1993)
+      put(hall(9, 5, 3.2, { bays: 5, plinth: 0.6, model: 'v_shelter' }), 0, -15.2, 0, 'modern');                     // 석조여래좌상 보호각(1993)
       for (const [x, z, w, d] of [[-5.2, 7.2, 7.5, 0.5], [5.2, 7.2, 7.5, 0.5], [-9.6, -4, 0.5, 23], [9.6, -4, 0.5, 23]]) put(box(w, 0.25, d, VMAT.plinth, 0, 0.12, 0), x, z, 0, 'stone'); // 회랑 터
       put(pond(4.5, 2.8), -4.2, 11.2, 0, 'stone'); put(pond(4.5, 2.8), 4.2, 11.2, 0, 'stone');
-      const mu = new THREE.Group(); mu.add(box(9, 3, 6, VMAT.modern, 0, 1.5, 0)); mu.add(box(9.6, 0.3, 6.6, VMAT.stone, 0, 3.15, 0)); mu.add(box(4, 1.8, 0.1, VMAT.glass, 0, 1.1, 3.02, false));
+      const mu = museum();
       put(mu, 16.5, -6, -Math.PI / 2, 'modern');                                                  // 정림사지박물관(2006)
       for (const [x, z] of [[-13, 4], [-13.5, -10], [13, 6], [12.5, -16]]) put(tree(0.9), x, z, 0, 'tree');
       return { root, items, labels: [['석조여래좌상 보호각 (1993)', 0, 5.2, -15.2], ['금당 터', 0, 1.6, -7.5], ['연못', -4.2, 1.2, 11.2], ['정림사지박물관 (2006)', 16.5, 4.4, -6]] };
