@@ -97,3 +97,11 @@ Vite + React + TypeScript + Tailwind CSS + Three.js + @react-three/fiber + @reac
 - 셋째 마당 도구막대에 두 석탑 부재 16종(`REAL` → `SHAPES.p_*`, 화강암 고정). 예시에서 능사 목탑은 뺐다.
 - 첫 화면 리플렛(`leaflet.js`): 실제 정림사지박물관 리플렛 판형(남색 표지, 흰 속지, 초록 박물관 면, 남색 관람 안내). 그림은 `scripts/blender/garam_scene.py`로 렌더한 `public/leaflet/*.jpg`(실행 시 출력 폴더는 절대 경로로 줄 것). `?leaflet=0`이면 건너뜀.
 - 둘째 마당 "정림사지 둘러보기"에 미래 복원(정림사지박물관 복원 계획 참고) 전환이 있다.
+
+## 세계의 탑 · 돌 깨짐 · 대화창 · 블렌더 마을 (2026-11-27)
+
+- `sim.js` `WORLD`: 피사의 사탑·대안탑·빅벤·도쿄타워·에펠탑·N서울타워를 실제 크기(1단위 = 1.37m)로 `steel` 이음 스택. 셋째 마당 예시로 불러오면 `sim.breakAt`(1.5~4.5) 세기에 이르러 `collapseNow()`로 쓰러진다(게임 설정). 정림사지·미륵사지 예시는 `sim.armor`로 무너지지 않는다.
+- 돌 깨짐: 무너진 뒤 큰 충격을 받은 돌·벽돌은 `shatter()`로 조각(MATS.chip)나고 `dust()` 돌먼지가 핀다.
+- 대화창(`towerchat.js`): 셋째 마당 "말로 탑 만들기". `/api/build`(server/build.ts, .env.local ANTHROPIC_API_KEY 필요, 개발 서버에서만) → 실패하면 내장 생성기(곰돌이·피라미드·눈사람·로켓·하트·성·N층 탑·탑 이름).
+- 마을 건물: `garam_scene.py`를 `SCENE=village`로 돌리면 `public/models/village/*.glb`. `village.js` `swap()`이 코드 건물의 크기에 맞춰 바꿔 끼운다(재료는 VMAT).
+- 리플렛: 첫째 마당 시작 때 미륵사지, 둘째 마당 들어갈 때 정림사지(한 번씩), 판의 "리플렛" 버튼으로 다시. 관람 안내 면은 없앴다.
